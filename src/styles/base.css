@@ -1,0 +1,166 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--t-body);
+  font-variation-settings: 'wdth' 100;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Numerals: tabular everywhere, so readouts never jitter while orbiting. */
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
+}
+
+.eyebrow {
+  font-size: var(--t-tag);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- scrollbars ---------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-4);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- app shell ----------------------------------------------------------- */
+.shell {
+  display: grid;
+  grid-template-rows: var(--rail-top) 1fr var(--strip);
+  grid-template-columns: var(--rail-side) 1fr auto;
+  grid-template-areas:
+    'top    top    top'
+    'rail   stage  inspector'
+    'strip  strip  strip';
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--void);
+}
+
+.shell[data-inspector='closed'] {
+  grid-template-columns: var(--rail-side) 1fr 0;
+}
+
+.area-top {
+  grid-area: top;
+}
+.area-rail {
+  grid-area: rail;
+}
+.area-stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.area-inspector {
+  grid-area: inspector;
+  min-height: 0;
+}
+.area-strip {
+  grid-area: strip;
+}
+
+@media (max-width: 860px) {
+  .shell,
+  .shell[data-inspector='closed'] {
+    grid-template-rows: var(--rail-top) 1fr;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'top'
+      'stage';
+  }
+  .area-rail,
+  .area-strip {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

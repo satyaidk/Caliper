@@ -43,6 +43,10 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on via the API instead of failing when it has never
+          # been switched on by hand. Needs the pages: write permission above.
+          enablement: true
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v3

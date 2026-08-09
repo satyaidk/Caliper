@@ -10,7 +10,7 @@
     "url": "https://github.com/satyaidk/Caliper.git"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "vite",

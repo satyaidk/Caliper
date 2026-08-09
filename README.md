@@ -65,20 +65,26 @@ production build (`.github/workflows/ci.yml`). Pushing to `main` additionally
 runs **Deploy**, which builds with the right base path and publishes to GitHub
 Pages (`.github/workflows/deploy.yml`).
 
-The deploy workflow turns Pages on itself (`enablement: true`), so there is no
-setting to click first — **but GitHub only serves Pages from a private
-repository on a paid plan**. On the free plan the deploy step fails with
-`Get Pages site failed … Not Found` no matter what the workflow does. Three ways
-out, in order of least effort:
+**Pages has to be switched on by hand once, before the first deploy:**
+Settings → Pages → Build and deployment → Source → **GitHub Actions**.
 
-1. Make the repository public. Pages is free for public repos.
-2. Deploy to Netlify or Vercel instead — both are already configured (below),
-   both serve private repositories on their free tiers, and neither needs the
-   base-path handling that Pages does.
-3. Upgrade to GitHub Pro or Team.
+The workflow passes `enablement: true` to `actions/configure-pages`, which asks
+the API to create the Pages site if it is missing. That call needs repository
+admin rights, and the `GITHUB_TOKEN` a workflow runs with does not carry them —
+so on a repo where Pages has never been configured it fails with
+`Create Pages site failed … Resource not accessible by integration`. The flag is
+kept because it costs nothing once the site exists (the action finds it and
+skips the create), and it does work for anyone with admin-scoped credentials.
+But it is not a substitute for the one-time toggle.
 
-If you take route 2, delete `.github/workflows/deploy.yml` so a red X stops
-appearing on every push to `main`.
+Two other things worth knowing:
+
+- GitHub only serves Pages from a **private** repository on a paid plan. On the
+  free plan, make the repo public or deploy elsewhere.
+- Netlify and Vercel are both already configured (below), serve private repos on
+  their free tiers, and need none of the base-path handling Pages does. If you
+  go that way, delete `.github/workflows/deploy.yml` so a red X stops appearing
+  on every push to `main`.
 
 Releases are tagged `vMAJOR.MINOR.PATCH` and written up in
 [CHANGELOG.md](CHANGELOG.md). Bump the version in `package.json` and add the

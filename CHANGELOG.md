@@ -32,7 +32,7 @@ First release. A 3D model viewer that opens the file and tells you how big it is
   when the frame rate falls under load and restores it when there is headroom.
 - WebGL context loss is caught and recovered from, with an error boundary and a
   no-WebGL fallback behind it.
-- CI runs typecheck and build on `main` and `dev`; `main` deploys to GitHub
-  Pages.
+- CI runs typecheck and build on `main` and `dev`. Deployment is Vercel's git
+  integration, so there is no deploy workflow to keep in step with it.
 
 [1.0.0]: https://github.com/satyaidk/Caliper/releases/tag/v1.0.0

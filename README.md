@@ -61,50 +61,39 @@ April 2026 and GitHub's runners have started warning about it.
 | `dev` | Where work lands. Feature branches merge here first. |
 
 Every push and pull request on either branch runs **CI** — typecheck plus a
-production build (`.github/workflows/ci.yml`). Pushing to `main` additionally
-runs **Deploy**, which builds with the right base path and publishes to GitHub
-Pages (`.github/workflows/deploy.yml`).
-
-**Pages has to be switched on by hand once, before the first deploy:**
-Settings → Pages → Build and deployment → Source → **GitHub Actions**.
-
-The workflow passes `enablement: true` to `actions/configure-pages`, which asks
-the API to create the Pages site if it is missing. That call needs repository
-admin rights, and the `GITHUB_TOKEN` a workflow runs with does not carry them —
-so on a repo where Pages has never been configured it fails with
-`Create Pages site failed … Resource not accessible by integration`. The flag is
-kept because it costs nothing once the site exists (the action finds it and
-skips the create), and it does work for anyone with admin-scoped credentials.
-But it is not a substitute for the one-time toggle.
-
-Two other things worth knowing:
-
-- GitHub only serves Pages from a **private** repository on a paid plan. On the
-  free plan, make the repo public or deploy elsewhere.
-- Netlify and Vercel are both already configured (below), serve private repos on
-  their free tiers, and need none of the base-path handling Pages does. If you
-  go that way, delete `.github/workflows/deploy.yml` so a red X stops appearing
-  on every push to `main`.
+production build (`.github/workflows/ci.yml`). That is the only workflow in the
+repository.
 
 Releases are tagged `vMAJOR.MINOR.PATCH` and written up in
 [CHANGELOG.md](CHANGELOG.md). Bump the version in `package.json` and add the
 changelog entry in the same commit as the release.
 
-### Deploying somewhere else
+## Deploying
 
-The build is a static bundle, so any static host will serve it. Configs ship for
-two:
+Vercel, through its git integration. There is no deploy workflow, because
+Vercel watches the repository directly — a workflow would only be a second
+thing to keep in step.
 
-- **Netlify / Cloudflare Pages** — `netlify.toml` plus `public/_headers`
-- **Vercel** — `vercel.json`
+**One-time setup:** import the repository at
+[vercel.com/new](https://vercel.com/new). Vercel reads `vercel.json`, so it
+already knows the framework, the build command, the output directory, the
+single-page rewrite and the security headers. Accept the defaults.
 
-Both set the single-page rewrite and the same security headers, including a CSP
-that gives the WebAssembly kernels their origins and nothing else. The app will
-not load its CAD or BIM kernels without `cdn.jsdelivr.net` and
-`www.gstatic.com` in `script-src`.
+After that:
 
-Three things to change for your own domain: the `canonical` link and the
-`og:image` URL in `index.html`, and the `loc` in `public/sitemap.xml`.
+| Push to | You get |
+| --- | --- |
+| `main` | The production deployment, on your project's live domain |
+| `dev` or any branch | A preview deployment on its own URL |
+| A pull request | A preview URL commented on the PR |
+
+`vercel.json` carries a CSP that gives the WebAssembly kernels their origins and
+nothing else. The app will not load its CAD or BIM kernels without
+`cdn.jsdelivr.net` and `www.gstatic.com` in `script-src`.
+
+Once you know your production domain, update three things that still point at a
+placeholder: the `canonical` link and the `og:image` URL in `index.html`, and
+the `loc` in `public/sitemap.xml`.
 
 ### Passing a model in by URL
 

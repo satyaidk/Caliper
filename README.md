@@ -50,7 +50,8 @@ npm run preview    # serve the build
 npm run typecheck
 ```
 
-Node 20 or newer (see `.nvmrc`).
+Node 22 or newer (see `.nvmrc`, which pins 24). Node 20 reached end of life in
+April 2026 and GitHub's runners have started warning about it.
 
 ## Branches and releases
 
@@ -64,8 +65,20 @@ production build (`.github/workflows/ci.yml`). Pushing to `main` additionally
 runs **Deploy**, which builds with the right base path and publishes to GitHub
 Pages (`.github/workflows/deploy.yml`).
 
-Pages needs one setting turned on before the first deploy: **Settings → Pages →
-Source → GitHub Actions**.
+The deploy workflow turns Pages on itself (`enablement: true`), so there is no
+setting to click first — **but GitHub only serves Pages from a private
+repository on a paid plan**. On the free plan the deploy step fails with
+`Get Pages site failed … Not Found` no matter what the workflow does. Three ways
+out, in order of least effort:
+
+1. Make the repository public. Pages is free for public repos.
+2. Deploy to Netlify or Vercel instead — both are already configured (below),
+   both serve private repositories on their free tiers, and neither needs the
+   base-path handling that Pages does.
+3. Upgrade to GitHub Pro or Team.
+
+If you take route 2, delete `.github/workflows/deploy.yml` so a red X stops
+appearing on every push to `main`.
 
 Releases are tagged `vMAJOR.MINOR.PATCH` and written up in
 [CHANGELOG.md](CHANGELOG.md). Bump the version in `package.json` and add the

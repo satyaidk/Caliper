@@ -1,41 +1,21 @@
 import { useViewer } from '@/store/useViewer';
 import { bytes, shortName } from '@/lib/format';
 import { useIsCompact } from '@/hooks/useMediaQuery';
-import {
-  IconCamera,
-  IconCube,
-  IconMoon,
-  IconOpen,
-  IconPanel,
-  IconSearch,
-  IconSun,
-} from './Icons';
+import { IconCaliper, IconCamera, IconMoon, IconOpen, IconPanel, IconSun } from './Icons';
 
-export function TopRail({ onOpen }: { onOpen: () => void }) {
+export function TopRail({ onOpen, onScreenshot }: { onOpen: () => void; onScreenshot: () => void }) {
   const model = useViewer((s) => s.model);
   const theme = useViewer((s) => s.theme);
   const setTheme = useViewer((s) => s.setTheme);
-  const togglePalette = useViewer((s) => s.togglePalette);
-  const toggleInspector = useViewer((s) => s.toggleInspector);
+  const togglePanel = useViewer((s) => s.togglePanel);
   const toggleSheet = useViewer((s) => s.toggleSheet);
-  const inspectorOpen = useViewer((s) => s.inspectorOpen);
-  const engine = useViewer((s) => s.engine);
-  const toast = useViewer((s) => s.toast);
+  const panelOpen = useViewer((s) => s.panelOpen);
   const compact = useIsCompact();
-
-  const capture = () => {
-    if (!engine || !model) return;
-    const a = document.createElement('a');
-    a.href = engine.screenshot(2);
-    a.download = `${model.name.replace(/\.[^.]+$/, '')}.png`;
-    a.click();
-    toast({ tone: 'success', title: 'Saved the view as PNG' });
-  };
 
   return (
     <header className="toprail area-top">
       <div className="mark">
-        <IconCube />
+        <IconCaliper />
         <span className="mark-word">Caliper</span>
       </div>
 
@@ -56,23 +36,16 @@ export function TopRail({ onOpen }: { onOpen: () => void }) {
       </div>
 
       <div className="rail-actions">
-        <button className="btn" data-variant="ghost-line" onClick={onOpen}>
+        <button className="btn" data-variant="ghost-line" onClick={onOpen} title="Open a model  ⌘O">
           <IconOpen size={16} />
           {!compact && <span>Open</span>}
         </button>
 
-        {!compact && (
-          <button className="btn btn-icon" onClick={() => togglePalette(true)} title="Commands  ⌘K">
-            <IconSearch />
-            <span className="sr-only">Open the command palette</span>
-          </button>
-        )}
-
         <button
           className="btn btn-icon"
-          onClick={capture}
+          onClick={onScreenshot}
           disabled={!model}
-          title="Save a PNG of this view"
+          title="Save a PNG of this view  ⌘S"
         >
           <IconCamera size={17} />
           <span className="sr-only">Save a PNG of this view</span>
@@ -89,12 +62,12 @@ export function TopRail({ onOpen }: { onOpen: () => void }) {
 
         <button
           className="btn btn-icon"
-          aria-pressed={compact ? undefined : inspectorOpen}
-          onClick={() => (compact ? toggleSheet(true) : toggleInspector())}
-          title="Inspector"
+          aria-pressed={compact ? undefined : panelOpen}
+          onClick={() => (compact ? toggleSheet(true) : togglePanel())}
+          title="Details  ⌘B"
         >
           <IconPanel size={17} />
-          <span className="sr-only">Toggle the inspector</span>
+          <span className="sr-only">Toggle the details panel</span>
         </button>
       </div>
     </header>

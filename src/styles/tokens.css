@@ -1,117 +1,194 @@
 /* ---------------------------------------------------------------------------
    Caliper design tokens
 
-   The palette is derived from the one convention every 3D tool already shares:
-   the axis triad. X is red, Y is green, Z is blue. Those three hues are used
-   literally — in the gizmo, in the section-plane control, and in the dimension
-   readout — so colour always means the same thing. Z-blue doubles as the
-   interface accent, which keeps the chrome inside the model's own vocabulary
-   instead of importing a brand colour from outside it.
+   The shell is an instrument body: cool graphite, hairline rules, engraved
+   labels, and exactly one warm colour. That colour is amber, and it is not a
+   taste decision — it is the only hue left. A model viewer already spends red,
+   green and blue on the axis triad, and the triad is not negotiable because
+   every other tool in this world uses it. An emerald brand colour has to fight
+   axis-Y for the same wavelength and one of them loses; amber never enters the
+   argument, which is why Y is finally allowed to be an honest green here.
+
+   Amber earns it on its own terms too. It is the colour a scribed line takes on
+   oiled steel — the mark a machinist leaves before cutting. That is exactly what
+   the accent means in this app: everything amber is something *you* put there.
+   The selection marker, the measuring annotations, the snap cursor, the primary
+   button. The model wears its own colours; the triad points; amber is authorship.
+
+   So there are three colour systems and they never overlap:
+
+     amber   — what you did:      selection, measurements, primary actions
+     triad   — where things are:  gizmo, size rows, per-axis measurement splits
+     grey    — everything else
+
+   Every pair below clears WCAG AA against the surface it sits on. The dark
+   theme's amber is bright and carries dark ink; the light theme's drops to a
+   bronze so white ink clears 4.5:1 on it. That inversion is the whole reason
+   --accent-ink exists as a token rather than a hardcoded white.
 --------------------------------------------------------------------------- */
 
 :root {
-  /* --- axis triad ------------------------------------------------------- */
-  --axis-x: #f2695f;
-  --axis-y: #7fd48c;
-  --axis-z: #5a9cf8;
+  color-scheme: dark;
 
-  /* --- surfaces (dark, default) ----------------------------------------- */
-  --void: #0d0e11;
-  --stage: #14161b;
-  --panel: #17191f;
-  --raise: #1e2128;
-  --sunken: #101216;
+  /* --- axis triad (position) --------------------------------------------- */
+  --axis-x: #ff5f56;
+  --axis-y: #57d364;
+  --axis-z: #4aa3ff;
 
-  --rule: #262a33;
-  --rule-soft: #1d2027;
-  --rule-strong: #333945;
+  /* --- scribe amber (authorship) ----------------------------------------- */
+  --accent: #ffb224;
+  --accent-hover: #ffc24d;
+  --accent-press: #e89a10;
+  --accent-ink: #1a1206;
+  --accent-wash: rgba(255, 178, 36, 0.14);
+  --accent-line: rgba(255, 178, 36, 0.42);
+  --accent-glow: rgba(255, 178, 36, 0.22);
 
-  /* --- ink -------------------------------------------------------------- */
-  --ink: #e9ecf2;
-  --ink-2: #a8b1c1;
-  --ink-3: #6f7889;
-  --ink-4: #4b5261;
+  /* --- shell surfaces ----------------------------------------------------- */
+  --void: #101114;
+  --panel: #191b1f;
+  --raise: #232529;
+  --sunken: #141518;
 
-  /* --- signal ----------------------------------------------------------- */
-  --accent: var(--axis-z);
-  --accent-ink: #0a0d14;
-  --accent-wash: rgba(90, 156, 248, 0.13);
-  --accent-line: rgba(90, 156, 248, 0.42);
-  --warn: #ffb057;
-  --danger: #f2695f;
-  --ok: #7fd48c;
+  --rule: #2a2d33;
+  --rule-soft: #212429;
+  --rule-strong: #3a3e46;
 
-  /* --- viewport backdrops ----------------------------------------------- */
-  --stage-top: #1a1d24;
-  --stage-bottom: #0b0c0f;
-  --grid-line: #2b303a;
-  --grid-line-major: #3a4150;
+  /* --- ink ---------------------------------------------------------------- */
+  --ink: #f0f1f3;
+  --ink-2: #c2c5cb;
+  --ink-3: #8d9199;
+  --ink-4: #6c7078;
 
-  /* --- type ------------------------------------------------------------- */
+  /* --- status ------------------------------------------------------------- */
+  --warn: #f0a53a;
+  --danger: #ff6b70;
+  --ok: #57d364;
+  --link: #4aa3ff;
+
+  /* --- pipeline marks ------------------------------------------------------
+     Three categories need three hues that are neither amber nor a warning.
+     Mesh and BIM can borrow from the triad without confusion — they appear as
+     words in a table, never as a direction — but CAD gets a violet of its own,
+     because the obvious amber would say "caution" in one place and "this is
+     yours" everywhere else. */
+  --pipe-mesh: var(--axis-z);
+  --pipe-cad: #b18cff;
+  --pipe-bim: var(--axis-y);
+
+  /* --- viewport -----------------------------------------------------------
+     The backdrop is a CSS gradient, so it lives here. The plate and its grid
+     are three.js materials, so they live in the SKIN table in viewer/Stage.ts —
+     one owner each, rather than two copies that drift apart. The plate is kept
+     lighter than --stage-top so it stays the brightest thing in frame. */
+  --stage-top: #3c3f46;
+  --stage-bottom: #24262b;
+
+  /* --- type ---------------------------------------------------------------
+     Archivo carries a real width axis, and this design spends it: engraved
+     labels run wide the way a maker's mark is stamped across a tool body, while
+     the display line runs narrow and tight. One family, two voices. Plex Mono
+     takes every number, because a readout that reflows while you orbit is a
+     readout nobody trusts. */
   --font-ui: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --t-micro: 0.625rem; /* 10px — rail labels           */
-  --t-tag: 0.6875rem; /* 11px — eyebrows, chips        */
-  --t-data: 0.75rem; /* 12px — numeric readouts       */
-  --t-body: 0.8125rem; /* 13px — controls, list rows    */
-  --t-lead: 0.9375rem; /* 15px — panel titles           */
-  --t-title: 1.375rem; /* 22px — empty-state headline   */
-  --t-hero: clamp(2rem, 7vw, 3.25rem);
+  --t-micro: 0.625rem; /* 10px — engraved rail labels    */
+  --t-tag: 0.6875rem; /* 11px — eyebrows, chips         */
+  --t-data: 0.75rem; /* 12px — numeric readouts        */
+  --t-body: 0.8125rem; /* 13px — controls, list rows     */
+  --t-lead: 0.9375rem; /* 15px — panel titles            */
+  --t-read: 1.0625rem; /* 17px — the measurement number  */
+  --t-title: 1.375rem; /* 22px — section headline        */
+  --t-hero: clamp(2.1rem, 6.6vw, 3.4rem);
 
-  --track-wide: 0.16em;
+  --track-wide: 0.17em;
   --track-mid: 0.06em;
+  --wdth-engraved: 116;
+  --wdth-display: 88;
 
-  /* --- geometry --------------------------------------------------------- */
+  /* --- geometry ------------------------------------------------------------ */
   --r-xs: 3px;
   --r-sm: 5px;
   --r-md: 8px;
-  --r-lg: 13px;
+  --r-lg: 12px;
   --r-pill: 999px;
 
-  --rail-top: 46px;
-  --rail-side: 52px;
+  --rail-top: 48px;
+  --rail-side: 54px;
   --strip: 26px;
-  --inspector: 302px;
+  --panel-w: 316px;
 
   --ease: cubic-bezier(0.22, 0.68, 0.32, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --dur: 180ms;
+  --dur: 150ms;
 
-  --shadow-panel: 0 18px 44px -18px rgba(0, 0, 0, 0.85);
-  --shadow-pop: 0 26px 70px -22px rgba(0, 0, 0, 0.92);
+  /* Modal scrims are absolute, not derived from --void: a light shell still
+     needs to go dark behind a dialog or the dialog stops reading as modal. */
+  --scrim: rgba(8, 9, 11, 0.66);
+
+  --shadow-panel: 0 16px 40px -18px rgba(0, 0, 0, 0.75);
+  --shadow-pop: 0 26px 70px -22px rgba(0, 0, 0, 0.85);
+  --shadow-float:
+    0 2px 6px -1px rgba(0, 0, 0, 0.5), 0 10px 26px -14px rgba(0, 0, 0, 0.65);
 }
 
-/* --- light theme -------------------------------------------------------- */
+/* --- light theme: the surface plate ---------------------------------------
+   Not paper. A granite surface plate is a mid grey, and the instruments sit on
+   it as white chrome — which is why the shell lifts to white while the ground
+   behind it stays grey enough to read as a surface. */
 :root[data-theme='light'] {
-  --void: #eceef2;
-  --stage: #f6f7f9;
-  --panel: #ffffff;
-  --raise: #f1f3f7;
-  --sunken: #e7eaf0;
+  color-scheme: light;
 
-  --rule: #d8dce4;
-  --rule-soft: #e6e9ef;
-  --rule-strong: #c2c8d4;
+  --axis-x: #c9342b;
+  --axis-y: #2f7d32;
+  --axis-z: #1667c4;
 
-  --ink: #14171d;
-  --ink-2: #4d5666;
-  --ink-3: #757e8e;
-  --ink-4: #9aa2b1;
-
-  --axis-z: #2f7ae0;
-  --axis-x: #d94a3f;
-  --axis-y: #3d9c55;
-
+  /* Amber at full brightness cannot carry white text, so the light theme runs
+     it down to bronze — the same pigment, further into the metal. */
+  --accent: #a85c00;
+  --accent-hover: #8f4d00;
+  --accent-press: #7a4200;
   --accent-ink: #ffffff;
-  --accent-wash: rgba(47, 122, 224, 0.1);
-  --accent-line: rgba(47, 122, 224, 0.45);
+  --accent-wash: rgba(168, 92, 0, 0.09);
+  --accent-line: rgba(168, 92, 0, 0.38);
+  --accent-glow: rgba(168, 92, 0, 0.16);
 
-  --stage-top: #ffffff;
-  --stage-bottom: #d9dde5;
-  --grid-line: #c9cfda;
-  --grid-line-major: #aeb6c4;
+  --void: #e6e7ea;
+  --panel: #ffffff;
+  --raise: #f1f2f5;
+  --sunken: #f6f7f8;
 
-  --shadow-panel: 0 16px 40px -20px rgba(24, 32, 48, 0.35);
-  --shadow-pop: 0 24px 64px -22px rgba(24, 32, 48, 0.4);
+  --rule: #e2e4e8;
+  --rule-soft: #edeef1;
+  --rule-strong: #c8ccd3;
+
+  --ink: #1b1e23;
+  --ink-2: #474c55;
+  --ink-3: #6a7079;
+  --ink-4: #8b9099;
+
+  --warn: #a35a00;
+  --danger: #c62828;
+  --ok: #2f7d32;
+  --link: #1667c4;
+
+  --pipe-mesh: var(--axis-z);
+  --pipe-cad: #6135c4;
+  --pipe-bim: var(--axis-y);
+
+  /* Kept well below the plate's own white so the plate reads as a surface the
+     model stands on rather than more of the same wall behind it. */
+  --stage-top: #e5e8ec;
+  --stage-bottom: #cbcfd6;
+
+  --scrim: rgba(27, 30, 35, 0.4);
+
+  /* A light shell is almost shadowless — a hairline does the work. */
+  --shadow-panel:
+    0 1px 2px rgba(27, 30, 35, 0.06), 0 10px 28px -14px rgba(27, 30, 35, 0.22);
+  --shadow-pop:
+    0 1px 3px rgba(27, 30, 35, 0.08), 0 22px 56px -20px rgba(27, 30, 35, 0.26);
+  --shadow-float:
+    0 1px 2px rgba(27, 30, 35, 0.07), 0 6px 18px -8px rgba(27, 30, 35, 0.18);
 }

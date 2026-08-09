@@ -1,0 +1,45 @@
+{
+  "name": "Caliper — 3D model viewer",
+  "short_name": "Caliper",
+  "description": "Open and measure 3D models in the browser. Mesh, CAD and BIM formats, nothing uploaded.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#101114",
+  "theme_color": "#101114",
+  "categories": ["productivity", "utilities", "graphics"],
+  "icons": [
+    { "src": "./icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "./icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "maskable" }
+  ],
+  "file_handlers": [
+    {
+      "action": ".",
+      "accept": {
+        "model/stl": [".stl"],
+        "model/gltf-binary": [".glb"],
+        "model/gltf+json": [".gltf"],
+        "model/obj": [".obj"],
+        "model/step": [".step", ".stp"],
+        "model/iges": [".iges", ".igs"],
+        "application/octet-stream": [
+          ".ply",
+          ".off",
+          ".fbx",
+          ".dae",
+          ".3ds",
+          ".3mf",
+          ".amf",
+          ".wrl",
+          ".brep",
+          ".brp",
+          ".fcstd",
+          ".3dm",
+          ".ifc",
+          ".bim"
+        ]
+      }
+    }
+  ]
+}

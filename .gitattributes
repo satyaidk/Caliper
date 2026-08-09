@@ -1,0 +1,16 @@
+# Normalise line endings in the repository so a Windows checkout and a Linux CI
+# runner never disagree about whether a file changed.
+* text=auto eol=lf
+
+# Binary assets must not be touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.stl binary
+*.glb binary
+*.3dm binary
+*.fbx binary

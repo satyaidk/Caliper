@@ -2,31 +2,71 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
-    />
+    <!-- No maximum-scale: pinch-zoom is how a lot of people read a screen, and
+         locking it out to stop an input focus jump is not a trade worth making. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0d0e11" />
-    <title>Caliper — 3D model viewer</title>
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101114" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e6e7ea" />
+
+    <!-- Stamp the theme before first paint so a light-mode visitor never sees a
+         dark flash. Must agree with initialTheme() in store/useViewer.ts. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('caliper.theme');
+          document.documentElement.dataset.theme =
+            saved === 'dark' || saved === 'light'
+              ? saved
+              : matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+        } catch (e) {
+          /* keep the markup default */
+        }
+      })();
+    </script>
+
+    <title>Caliper — open and measure 3D models in the browser</title>
     <meta
       name="description"
-      content="Open and inspect 3D models in the browser. 18 mesh, CAD and BIM formats, no upload, no install."
+      content="Open STEP, STL, IFC, glTF and 18 more formats in the browser and read their size. Measure distances and diameters, with clicks that snap to corners and edges. Nothing is uploaded and there is nothing to install."
     />
+    <link rel="canonical" href="https://caliper.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Caliper — open and measure 3D models in the browser" />
+    <meta
+      property="og:description"
+      content="Mesh, CAD and BIM files open the same way. Read width, height and depth, and measure distances and diameters. Runs entirely on your device."
+    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Caliper — open and measure 3D models in the browser" />
+    <meta
+      name="twitter:description"
+      content="Mesh, CAD and BIM files open the same way. Read the size, measure distances and diameters."
+    />
+    <meta name="twitter:image" content="/og.png" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0e11'/%3E%3Cpath d='M16 6l8 4.6v9.2L16 24.4 8 19.8v-9.2z' fill='none' stroke='%235a9cf8' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M16 15.4l8-4.8M16 15.4v9M16 15.4l-8-4.8' fill='none' stroke='%235a9cf8' stroke-width='1.2' opacity='.65'/%3E%3C/svg%3E"
-    />
   </head>
   <body>
     <div id="root"></div>
-    <noscript>Caliper renders models with WebGL and needs JavaScript enabled.</noscript>
+    <noscript>
+      Caliper renders models with WebGL and needs JavaScript enabled.
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -107,7 +107,7 @@ button {
   grid-template-columns: var(--rail-side) 1fr auto;
   grid-template-areas:
     'top    top    top'
-    'rail   stage  inspector'
+    'rail   stage  panel'
     'strip  strip  strip';
   height: 100dvh;
   width: 100%;
@@ -115,7 +115,7 @@ button {
   background: var(--void);
 }
 
-.shell[data-inspector='closed'] {
+.shell[data-panel='closed'] {
   grid-template-columns: var(--rail-side) 1fr 0;
 }
 
@@ -131,8 +131,8 @@ button {
   min-width: 0;
   min-height: 0;
 }
-.area-inspector {
-  grid-area: inspector;
+.area-panel {
+  grid-area: panel;
   min-height: 0;
 }
 .area-strip {
@@ -141,7 +141,7 @@ button {
 
 @media (max-width: 860px) {
   .shell,
-  .shell[data-inspector='closed'] {
+  .shell[data-panel='closed'] {
     grid-template-rows: var(--rail-top) 1fr;
     grid-template-columns: 1fr;
     grid-template-areas:

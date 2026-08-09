@@ -70,11 +70,15 @@ export const PIPELINE_COPY: Record<Pipeline, { title: string; note: string }> = 
   },
 };
 
-/** Formats shown in the empty-state matrix — one chip per user-facing name. */
-export const SHOWCASE: Record<Pipeline, string[]> = {
-  mesh: ['stl', 'obj', 'ply', 'off', 'gltf', 'glb', 'fbx', 'dae', '3ds', '3mf', 'amf', 'wrl'],
-  cad: ['step', 'iges', 'brep', 'fcstd', '3dm'],
-  bim: ['ifc', 'bim'],
+/**
+ * The same list, grouped for the format matrix. Derived rather than written out
+ * a second time: a hand-kept showcase drifts from FORMATS the first time an
+ * extension is added, and then the page advertises a number it cannot back up.
+ */
+export const BY_PIPELINE: Record<Pipeline, FormatSpec[]> = {
+  mesh: FORMATS.filter((f) => f.pipeline === 'mesh'),
+  cad: FORMATS.filter((f) => f.pipeline === 'cad'),
+  bim: FORMATS.filter((f) => f.pipeline === 'bim'),
 };
 
 export function extOf(filename: string): string {

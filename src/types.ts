@@ -12,17 +12,8 @@ export interface FormatSpec {
   companions?: string[];
 }
 
-export type RenderMode = 'shaded' | 'wireframe' | 'edges' | 'xray' | 'normals';
-export type ProjectionMode = 'perspective' | 'orthographic';
-export type ViewPreset =
-  | 'front'
-  | 'back'
-  | 'left'
-  | 'right'
-  | 'top'
-  | 'bottom'
-  | 'iso';
-export type ClipAxis = 'x' | 'y' | 'z';
+export type RenderMode = 'shaded' | 'wireframe' | 'edges';
+export type ViewPreset = 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom' | 'iso';
 export type UnitSystem = 'mm' | 'cm' | 'm' | 'in';
 
 export interface SceneStats {
@@ -53,14 +44,6 @@ export interface ModelInfo {
   dimensions: Dimensions;
 }
 
-export interface TreeNode {
-  id: string;
-  name: string;
-  type: string;
-  triangles: number;
-  children: TreeNode[];
-}
-
 export interface LoadResult {
   object: THREE.Object3D;
   /** Loaders that carry their own colours ask us not to override materials. */
@@ -81,3 +64,32 @@ export type Toast = {
   title: string;
   text?: string;
 };
+
+/* --- measurement ---------------------------------------------------------- */
+
+/**
+ * What the next click does. `off` hands the pointer back to selection, which is
+ * the only mode where orbiting a model does not risk dropping a point.
+ */
+export type MeasureTool = 'off' | 'distance' | 'diameter';
+
+/** Where a picked point landed. Drives the marker glyph and the snap readout. */
+export type SnapKind = 'vertex' | 'midpoint' | 'centre' | 'surface';
+
+export interface MeasurePoint {
+  /** Position in world space — what the annotation is drawn from. */
+  world: [number, number, number];
+  /** The same position in the file's own units — what the readout shows. */
+  model: [number, number, number];
+  kind: SnapKind;
+}
+
+export interface Measurement {
+  id: number;
+  tool: Exclude<MeasureTool, 'off'>;
+  points: MeasurePoint[];
+  /** Straight-line distance, or the diameter of the fitted circle. */
+  value: number;
+  /** How the span splits across the axes. Distance only. */
+  delta?: [number, number, number];
+}

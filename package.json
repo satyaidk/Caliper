@@ -3,7 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Caliper — open and inspect 3D models in the browser.",
+  "description": "Open a 3D model in the browser and measure it. Mesh, CAD and BIM formats, nothing uploaded.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/satyaidk/Caliper.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -24,5 +32,8 @@
     "@vitejs/plugin-react": "^4.3.3",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
   }
 }

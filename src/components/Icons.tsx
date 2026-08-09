@@ -4,7 +4,9 @@ interface Props {
 }
 
 /* Every glyph is drawn on a 20×20 grid with a 1.5px stroke so the tool rail
-   reads as one instrument rather than a collection of borrowed icons. */
+   reads as one instrument rather than a collection of borrowed icons. The two
+   measuring glyphs carry the witness-tick motif the annotations use on stage,
+   so the tool and its mark are recognisably the same idea. */
 const base = (size: number) => ({
   width: size,
   height: size,
@@ -16,6 +18,8 @@ const base = (size: number) => ({
   strokeLinejoin: 'round' as const,
   'aria-hidden': true,
 });
+
+/* --- render modes --------------------------------------------------------- */
 
 export const IconShaded = ({ size = 18 }: Props) => (
   <svg {...base(size)}>
@@ -38,19 +42,7 @@ export const IconEdges = ({ size = 18 }: Props) => (
   </svg>
 );
 
-export const IconXray = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M10 2.6l6.4 3.7v7.4L10 17.4 3.6 13.7V6.3z" strokeDasharray="2.4 2" />
-    <circle cx="10" cy="10" r="2.4" />
-  </svg>
-);
-
-export const IconNormals = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M3 13.5l4.5-4.5 3 3L17 5.5" />
-    <path d="M13.5 5.5H17V9" />
-  </svg>
-);
+/* --- stage ---------------------------------------------------------------- */
 
 export const IconGrid = ({ size = 18 }: Props) => (
   <svg {...base(size)}>
@@ -58,33 +50,11 @@ export const IconGrid = ({ size = 18 }: Props) => (
   </svg>
 );
 
-export const IconAxes = ({ size = 18 }: Props) => (
+export const IconShadow = ({ size = 18 }: Props) => (
   <svg {...base(size)}>
-    <path d="M10 17V7" />
-    <path d="M10 12L3.4 15.6M10 12l6.6 3.6" />
-    <circle cx="10" cy="12" r="1.1" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-export const IconSection = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M10 2.6l6.4 3.7v7.4L10 17.4 3.6 13.7V6.3z" opacity=".4" />
-    <path d="M10 2.6L3.6 6.3v7.4L10 17.4z" />
-    <path d="M10 1.4v17.2" strokeDasharray="2 2" />
-  </svg>
-);
-
-export const IconExplode = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <rect x="7.6" y="7.6" width="4.8" height="4.8" rx=".6" />
-    <path d="M10 5.6V2.4M10 14.4v3.2M5.6 10H2.4M14.4 10h3.2" />
-  </svg>
-);
-
-export const IconSpin = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M16.6 10a6.6 6.6 0 1 1-2.3-5" />
-    <path d="M16.8 2.6v3.6h-3.6" />
+    <circle cx="8.4" cy="8.4" r="5" />
+    <path d="M11.4 13.2a5 5 0 1 0 1.8-9.2" opacity=".5" />
+    <ellipse cx="10" cy="16.4" rx="6.4" ry="1.4" opacity=".45" />
   </svg>
 );
 
@@ -94,6 +64,42 @@ export const IconFit = ({ size = 18 }: Props) => (
     <rect x="7.4" y="7.4" width="5.2" height="5.2" rx=".8" opacity=".55" />
   </svg>
 );
+
+/* --- measuring -----------------------------------------------------------
+   A witness tick at each end of a span is how a dimension is drawn on paper;
+   it is the through-line for this pair. */
+
+export const IconDistance = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M4 5.6v8.8M16 5.6v8.8" />
+    <path d="M4 10h12" />
+    <path d="M6.6 7.8L4 10l2.6 2.2M13.4 7.8L16 10l-2.6 2.2" />
+  </svg>
+);
+
+export const IconDiameter = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="10" r="6.4" />
+    <path d="M5.2 5.2l9.6 9.6" />
+    <circle cx="10" cy="10" r="1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const IconUndo = ({ size = 15 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M3.4 9.2h9a4 4 0 0 1 0 8H8.6" />
+    <path d="M6.4 5.8L3 9.2l3.4 3.4" />
+  </svg>
+);
+
+export const IconTrash = ({ size = 15 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M3.6 5.6h12.8M8 5.6V3.8h4v1.8" />
+    <path d="M5.2 5.6l.8 10.2h8l.8-10.2" />
+  </svg>
+);
+
+/* --- chrome --------------------------------------------------------------- */
 
 export const IconOpen = ({ size = 18 }: Props) => (
   <svg {...base(size)}>
@@ -130,52 +136,33 @@ export const IconMoon = ({ size = 18 }: Props) => (
   </svg>
 );
 
-export const IconEye = ({ size = 15 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M1.8 10S4.9 4.6 10 4.6 18.2 10 18.2 10 15.1 15.4 10 15.4 1.8 10 1.8 10z" />
-    <circle cx="10" cy="10" r="2.2" />
-  </svg>
-);
-
-export const IconEyeOff = ({ size = 15 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M7.6 5.1A7.9 7.9 0 0 1 10 4.6c5.1 0 8.2 5.4 8.2 5.4a15 15 0 0 1-2.6 3.2M4.6 6.1A15.3 15.3 0 0 0 1.8 10S4.9 15.4 10 15.4c1.1 0 2-.2 2.9-.6" />
-    <path d="M2.6 2.6l14.8 14.8" />
-  </svg>
-);
-
-export const IconChevron = ({ size = 12 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M7.5 4.5L13 10l-5.5 5.5" />
-  </svg>
-);
-
 export const IconClose = ({ size = 14 }: Props) => (
   <svg {...base(size)}>
     <path d="M4.6 4.6l10.8 10.8M15.4 4.6L4.6 15.4" />
   </svg>
 );
 
-export const IconSearch = ({ size = 16 }: Props) => (
-  <svg {...base(size)}>
-    <circle cx="8.8" cy="8.8" r="5.6" />
-    <path d="M13 13l4 4" />
-  </svg>
-);
-
-export const IconCube = ({ size = 22 }: Props) => (
+/**
+ * The wordmark. Two jaws closing on a span, with the span itself picked out in
+ * amber — the app's whole proposition at 22 pixels.
+ */
+export const IconCaliper = ({ size = 22 }: Props) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
     <path
-      d="M12 2.4l8.4 4.85v9.7L12 21.8l-8.4-4.85v-9.7z"
-      stroke="var(--accent)"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
+      d="M4.6 4.5v15M19.4 4.5v15"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      opacity=".85"
     />
+    <path d="M4.6 12h14.8" stroke="var(--accent)" strokeWidth="1.7" strokeLinecap="round" />
     <path
-      d="M12 12.1l8.4-4.85M12 12.1v9.7M12 12.1L3.6 7.25"
+      d="M8.2 9.2L5.2 12l3 2.8M15.8 9.2l3 2.8-3 2.8"
       stroke="var(--accent)"
-      strokeWidth="1.1"
-      opacity=".6"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity=".75"
     />
   </svg>
 );

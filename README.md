@@ -9,6 +9,10 @@ rendered on the device, so nothing is uploaded and there is nothing to install.
 measures distances and diameters. That is the whole app. Everything else is on
 the roadmap below rather than in the way.
 
+> **New to the codebase?** [`docs/Caliper-Technical-Documentation.pdf`](docs/Caliper-Technical-Documentation.pdf)
+> explains the whole application in 84 pages — every file, the React and three.js
+> concepts behind them, the build tooling, and ten exercises to try. Start there.
+
 ## What it does
 
 **Opens 22 extensions across three pipelines.**

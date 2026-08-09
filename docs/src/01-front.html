@@ -1,0 +1,359 @@
+<!-- ===================================================== COVER ============ -->
+<section class="cover">
+  <div class="rule"></div>
+  <p class="eyebrow">Technical documentation</p>
+  <h1>Caliper</h1>
+  <p class="sub">A browser 3D model viewer that measures — explained end to end,
+    from the first line of HTML to the deployed site.</p>
+
+  <div class="dimline">
+    <svg viewBox="0 0 520 34" width="100%" height="34">
+      <g stroke="#9a5400" stroke-width="1.4" stroke-linecap="round" fill="none">
+        <path d="M2 4v26M518 4v26" />
+        <path d="M2 17h516" />
+        <path d="M14 11L6 17l8 6M506 11l8 6-8 6" stroke-width="1.2" opacity=".8" />
+      </g>
+      <rect x="205" y="7" width="110" height="20" rx="3" fill="#fff" stroke="#9a5400" stroke-width="1" />
+      <text x="260" y="21" font-family="Consolas, monospace" font-size="11"
+            font-weight="600" fill="#9a5400" text-anchor="middle">read me first</text>
+    </svg>
+  </div>
+
+  <div class="meta">
+    <div>Version 1.0.0</div>
+    <div>github.com/satyaidk/Caliper</div>
+    <div>React 18 · TypeScript 5 · three.js r169 · Vite 5 · Zustand 4</div>
+    <div>Written for a frontend developer learning by taking a real app apart</div>
+  </div>
+</section>
+
+<!-- ================================================== HOW TO READ ========= -->
+<section class="chapter">
+  <p class="eyebrow">Before you start</p>
+  <h1>How to read this</h1>
+  <p class="lede">This document assumes you can write HTML, CSS and some
+    JavaScript, and that React and 3D graphics are new or half-known. Everything
+    else is explained.</p>
+
+  <p>It is organised so you can read it in one pass or dip into it while the
+    code is open beside you. The five parts do different jobs:</p>
+
+  <table class="wrap">
+    <tr><td><b>Part I</b></td><td>What the app is and what every dependency is for. Read this first, in order.</td></tr>
+    <tr><td><b>Part II</b></td><td>Every file in the repository, explained. Use it as a reference — jump to the file you are looking at.</td></tr>
+    <tr><td><b>Part III</b></td><td>The ideas underneath: React patterns, state management, 3D graphics, the measuring maths. Read in order.</td></tr>
+    <tr><td><b>Part IV</b></td><td>Build tooling, git, CI, deployment. Read when you want to ship something of your own.</td></tr>
+    <tr><td><b>Part V</b></td><td>Exercises, a glossary, and where to read more.</td></tr>
+  </table>
+
+  <div class="box">
+    <span class="tag">The most useful way to use this</span>
+    <p>Do not read it like a novel. Open the file being discussed in your editor,
+      read the section, then change something and watch what breaks. A concept
+      you have broken and fixed is a concept you own. Part V has ten exercises
+      designed exactly for that.</p>
+  </div>
+
+  <h3>Conventions</h3>
+  <p>Code you can type is in <code>monospace</code>. File paths are written from
+    the repository root: <code>src/store/useViewer.ts</code>. Keys are shown as
+    <span class="kbd">M</span>. Where a snippet is shortened, <code>…</code>
+    marks what was cut. Every code sample is real code from the repository, not
+    pseudocode — you can search for it.</p>
+</section>
+
+<!-- ================================================== CONTENTS ============ -->
+<section class="chapter toc">
+  <p class="eyebrow">Contents</p>
+  <h1>What is in here</h1>
+
+  <ol>
+    <li>
+      <div class="ptitle">Part I — Orientation</div>
+      <ol>
+        <li><span class="num">1</span> What Caliper is, and what it does</li>
+        <li><span class="num">2</span> The stack, and why each piece is there</li>
+        <li><span class="num">3</span> Getting it running</li>
+      </ol>
+    </li>
+    <li>
+      <div class="ptitle">Part II — The codebase, file by file</div>
+      <ol>
+        <li><span class="num">4</span> The repository map</li>
+        <li><span class="num">5</span> The boot sequence</li>
+        <li><span class="num">6</span> The store — one source of truth</li>
+        <li><span class="num">7</span> The React components</li>
+        <li><span class="num">8</span> The hooks</li>
+        <li><span class="num">9</span> The helpers in <code>lib/</code></li>
+        <li><span class="num">10</span> The 3D engine</li>
+        <li><span class="num">11</span> The loaders</li>
+        <li><span class="num">12</span> The stylesheets</li>
+      </ol>
+    </li>
+    <li>
+      <div class="ptitle">Part III — The ideas behind the code</div>
+      <ol>
+        <li><span class="num">13</span> React, as used here</li>
+        <li><span class="num">14</span> Zustand, from scratch</li>
+        <li><span class="num">15</span> three.js, from scratch</li>
+        <li><span class="num">16</span> The measuring mathematics</li>
+        <li><span class="num">17</span> Routing — and why this app has none</li>
+        <li><span class="num">18</span> Making it fast</li>
+        <li><span class="num">19</span> TypeScript in this project</li>
+        <li><span class="num">20</span> Accessibility</li>
+      </ol>
+    </li>
+    <li>
+      <div class="ptitle">Part IV — From repository to live site</div>
+      <ol>
+        <li><span class="num">21</span> Vite and the build</li>
+        <li><span class="num">22</span> TypeScript configuration</li>
+        <li><span class="num">23</span> Version control</li>
+        <li><span class="num">24</span> GitHub Actions, line by line</li>
+        <li><span class="num">25</span> Deploying on Vercel</li>
+        <li><span class="num">26</span> Security headers and the CSP</li>
+      </ol>
+    </li>
+    <li>
+      <div class="ptitle">Part V — Learning from it</div>
+      <ol>
+        <li><span class="num">27</span> Ten exercises</li>
+        <li><span class="num">28</span> Mistakes this codebase avoids</li>
+        <li><span class="num">29</span> Glossary</li>
+        <li><span class="num">30</span> Where to read more</li>
+      </ol>
+    </li>
+  </ol>
+</section>
+
+<!-- ================================================== PART I ============== -->
+<section class="part">
+  <div class="n">Part I</div>
+  <h1>Orientation</h1>
+  <p>What the application is, which libraries it leans on and why, and how to get
+    it running on your machine in under a minute.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 1</p>
+  <h1>What Caliper is, and what it does</h1>
+  <p class="lede">Someone emails you a <code>.step</code> file. You have no CAD
+    software. Caliper opens it in a browser tab and tells you how big it is.</p>
+
+  <h2>1.1 The problem it solves</h2>
+  <p>3D model files come in dozens of incompatible formats, and most of them
+    need expensive desktop software to open. If all you need is to check a
+    dimension — will this bracket fit, what is the diameter of that hole — that
+    is a heavy price. Caliper is the light version of that job: open the file,
+    read the numbers, close the tab.</p>
+
+  <p>Everything happens on the visitor's own machine. The file is never uploaded.
+    That is not only a privacy claim — it is an architectural fact that shapes
+    the whole codebase, because there is no server, no API, no database and no
+    authentication anywhere in this project. It is a pure frontend application,
+    which is exactly what makes it a good thing to learn from.</p>
+
+  <h2>1.2 What a user can do</h2>
+  <table>
+    <tr><th>Capability</th><th>How it works</th></tr>
+    <tr><td>Open a model</td><td>Drag and drop, a file picker, or a <code>?model=</code> URL</td></tr>
+    <tr><td>Read its size</td><td>Width, height and depth in mm, cm, m or inches</td></tr>
+    <tr><td>Measure a distance</td><td>Click two points; the span is also split into X, Y and Z</td></tr>
+    <tr><td>Measure a diameter</td><td>Click three points around an arc; a circle is fitted to them</td></tr>
+    <tr><td>Look at it</td><td>Orbit, pan, zoom; shaded, wireframe or shaded with edges</td></tr>
+    <tr><td>Select a part</td><td>Click it for its name and triangle count</td></tr>
+    <tr><td>Save a picture</td><td>PNG at twice screen resolution</td></tr>
+  </table>
+
+  <h2>1.3 The three format pipelines</h2>
+  <p>Twenty-two file extensions are supported, and they fall into three groups
+    that reach the screen by genuinely different routes. Understanding this
+    grouping explains most of the <code>src/viewer/loaders/</code> folder.</p>
+
+  <table class="wrap">
+    <tr><th>Pipeline</th><th>Extensions</th><th>What has to happen</th></tr>
+    <tr>
+      <td><b>Mesh</b></td>
+      <td><code>stl obj ply off gltf glb fbx dae 3ds 3mf amf wrl</code></td>
+      <td>The file already contains triangles. Parse them into memory and draw.</td>
+    </tr>
+    <tr>
+      <td><b>CAD B-rep</b></td>
+      <td><code>step stp iges igs brep brp fcstd 3dm</code></td>
+      <td>The file contains mathematical <i>surfaces</i>, not triangles. A geometry kernel compiled to WebAssembly must <i>tessellate</i> them — approximate each curved surface with a mesh — before anything can be drawn.</td>
+    </tr>
+    <tr>
+      <td><b>BIM</b></td>
+      <td><code>ifc bim</code></td>
+      <td>Building models. Geometry arrives already grouped into walls, doors and slabs, each with its own colour and identity.</td>
+    </tr>
+  </table>
+
+  <div class="box note">
+    <span class="tag">Why this matters for the download size</span>
+    <p>The CAD and BIM kernels are 5–12 MB WebAssembly builds. They are fetched
+      from a CDN the first time someone opens a file that needs them, never
+      bundled. A visitor who only ever opens an <code>.stl</code> downloads none
+      of it. This is <b>lazy loading</b>, and it is one of the most valuable
+      habits in frontend work: pay for a feature only when it is used.</p>
+  </div>
+
+  <h2>1.4 What was deliberately left out</h2>
+  <p>Version 1.0 is small on purpose. Angle measurement, section planes, a scene
+    tree, exploded views, animation playback and file export were all built and
+    then removed before release, because a tool that does two things clearly
+    beats one that does nine things confusingly. The roadmap in the README lists
+    them in the order they are worth adding back.</p>
+  <p>This is worth internalising as a habit: <span class="lead-in">the hard part
+    of design is subtraction.</span> Adding a feature is easy; deciding it does
+    not belong in version one is the skill.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 2</p>
+  <h1>The stack, and why each piece is there</h1>
+  <p class="lede">Five runtime dependencies, five development ones. Every entry
+    in <code>package.json</code> earns its place; here is what each one does.</p>
+
+  <h2>2.1 Runtime dependencies</h2>
+  <table class="wrap">
+    <tr><th>Package</th><th>Size</th><th>What it does and why it is here</th></tr>
+    <tr>
+      <td><code>react</code><br /><code>react-dom</code></td>
+      <td>~45 kB gz</td>
+      <td>Turns application state into DOM. Every panel, button and readout is a React component. <code>react-dom</code> is the part that actually touches the browser; React itself is renderer-agnostic.</td>
+    </tr>
+    <tr>
+      <td><code>three</code></td>
+      <td>~144 kB gz</td>
+      <td>The 3D engine. Wraps WebGL — the browser's low-level GPU API — in cameras, meshes, materials and lights. Writing this app in raw WebGL would take thousands of lines of shader plumbing.</td>
+    </tr>
+    <tr>
+      <td><code>zustand</code></td>
+      <td>~1 kB gz</td>
+      <td>State management. One shared object that any component can read from and write to, without passing props down through five layers. Chapter 14 explains it from scratch.</td>
+    </tr>
+    <tr>
+      <td><code>fflate</code></td>
+      <td>~10 kB gz</td>
+      <td>A zip decompressor. Used by exactly one loader: a FreeCAD <code>.FCStd</code> file is a zip archive with the geometry inside.</td>
+    </tr>
+  </table>
+
+  <h2>2.2 Development dependencies</h2>
+  <table class="wrap">
+    <tr><th>Package</th><th>What it does</th></tr>
+    <tr><td><code>vite</code></td><td>The dev server and the production bundler. Chapter 21.</td></tr>
+    <tr><td><code>@vitejs/plugin-react</code></td><td>Teaches Vite to compile JSX and enables hot reloading that preserves component state.</td></tr>
+    <tr><td><code>typescript</code></td><td>Type checking. Produces no runtime code — it is a safety net at build time only.</td></tr>
+    <tr><td><code>@types/react</code>, <code>@types/react-dom</code>, <code>@types/three</code></td><td>Type definitions for libraries written before TypeScript, or shipped without types.</td></tr>
+  </table>
+
+  <div class="box">
+    <span class="tag">Notice what is absent</span>
+    <p>No React Router. No Redux. No Tailwind. No component library. No test
+      framework. No ESLint. Each of those is a reasonable choice on some project
+      — none of them earns its place on this one, and every dependency you do
+      not add is one you never have to upgrade, patch or debug. When you start
+      your own project, begin from zero and add only what a real problem forces
+      you to add.</p>
+  </div>
+
+  <h2>2.3 The one architectural rule</h2>
+  <p>There is a single hard rule in this codebase, and almost everything else
+    follows from it:</p>
+
+  <div class="box note">
+    <span class="tag">The rule</span>
+    <p><code>src/viewer/</code> never imports React.<br />
+       <code>src/components/</code> never imports three.js.</p>
+  </div>
+
+  <p>The 3D engine is a plain TypeScript class that knows about cameras and
+    meshes and nothing about user interfaces. The React components know about
+    buttons and panels and nothing about WebGL. They meet in exactly two places:
+    the Zustand store, and a small set of callbacks the engine fires when
+    something happens.</p>
+
+  <p>This separation is why the engine can be understood without knowing React,
+    and the UI can be understood without knowing 3D graphics. When you build
+    your own applications, look for the equivalent line — the boundary between
+    "the thing that does the work" and "the thing that shows it" — and defend
+    it.</p>
+
+  <figure>
+    <svg viewBox="0 0 520 210" width="100%">
+      <defs>
+        <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0l7 4-7 4z" fill="#6b7280" />
+        </marker>
+      </defs>
+      <rect x="12" y="14" width="150" height="80" rx="5" fill="#f1f6fc" stroke="#1b5fa8" />
+      <text x="87" y="40" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#1b5fa8">components/</text>
+      <text x="87" y="56" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#3f454f">React · JSX · CSS</text>
+      <text x="87" y="72" text-anchor="middle" font-family="Segoe UI" font-size="8.5" fill="#6b7280">no three.js</text>
+
+      <rect x="358" y="14" width="150" height="80" rx="5" fill="#fdf6ec" stroke="#9a5400" />
+      <text x="433" y="40" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#9a5400">viewer/</text>
+      <text x="433" y="56" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#3f454f">three.js · WebGL</text>
+      <text x="433" y="72" text-anchor="middle" font-family="Segoe UI" font-size="8.5" fill="#6b7280">no React</text>
+
+      <rect x="185" y="120" width="150" height="66" rx="5" fill="#f6f7f9" stroke="#16181d" />
+      <text x="260" y="146" text-anchor="middle" font-family="Consolas,monospace" font-size="11">store/</text>
+      <text x="260" y="163" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#3f454f">zustand</text>
+      <text x="260" y="177" text-anchor="middle" font-family="Segoe UI" font-size="8.5" fill="#6b7280">the only meeting point</text>
+
+      <path d="M87 96v30h94" stroke="#6b7280" fill="none" marker-end="url(#ar)" />
+      <path d="M433 96v30h-94" stroke="#6b7280" fill="none" marker-end="url(#ar)" />
+      <text x="120" y="116" font-family="Segoe UI" font-size="8" fill="#6b7280">reads state, calls actions</text>
+      <text x="300" y="116" font-family="Segoe UI" font-size="8" fill="#6b7280">fires callbacks</text>
+    </svg>
+    <figcaption>The two halves of the application and the single place they
+      touch. An arrow that skipped the store — a component importing the Engine
+      directly, say — would be the first crack in the design.</figcaption>
+  </figure>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 3</p>
+  <h1>Getting it running</h1>
+
+  <h2>3.1 What you need</h2>
+  <p>Node.js 22 or newer. The repository pins 24 in <code>.nvmrc</code>, which is
+    the version continuous integration uses. Node ships with <code>npm</code>,
+    which is all the tooling you need.</p>
+
+  <h2>3.2 Four commands</h2>
+<pre><code><span class="c"># install every dependency listed in package.json</span>
+npm install
+
+<span class="c"># start the dev server with hot reloading — http://localhost:5173</span>
+npm run dev
+
+<span class="c"># type-check the whole project without producing any files</span>
+npm run typecheck
+
+<span class="c"># produce the deployable bundle in dist/</span>
+npm run build</code></pre>
+
+  <p>These are defined in <code>package.json</code> under <code>scripts</code>.
+    <code>npm run dev</code> is what you will use ninety-five per cent of the
+    time: save a file, and the browser updates in well under a second without
+    losing the model you have open.</p>
+
+  <h2>3.3 What to try first</h2>
+  <ol>
+    <li>Run <code>npm run dev</code> and open the address it prints.</li>
+    <li>Click <b>Load a sample STL</b>. A robot head appears on a build plate.</li>
+    <li>Drag to orbit, scroll to zoom, right-drag to pan.</li>
+    <li>Press <span class="kbd">M</span>, then click two points on the model. A
+      dimension line appears with a number on it.</li>
+    <li>Press <span class="kbd">W</span> for wireframe, <span class="kbd">Q</span>
+      to go back.</li>
+    <li>Open <code>src/components/Panel.tsx</code>, change the word
+      <code>"Width"</code> to <code>"Across"</code>, and save. Watch it change
+      in the browser without a reload.</li>
+  </ol>
+  <p>That last step is the loop you will spend your career in. Everything else in
+    this document is detail on top of it.</p>
+</section>

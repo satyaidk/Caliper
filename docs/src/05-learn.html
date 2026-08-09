@@ -1,0 +1,348 @@
+<section class="part">
+  <div class="n">Part V</div>
+  <h1>Learning from it</h1>
+  <p>Ten exercises that take you from a one-line change to a whole new feature,
+    the mistakes this codebase was written to avoid, and where to read next.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 27</p>
+  <h1>Ten exercises</h1>
+  <p class="lede">In rough order of difficulty. Do them on a branch. Break
+    things deliberately — a concept you have broken and fixed is one you own.</p>
+
+  <h3>1 · Change some copy <span style="color:#6b7280;font-weight:400">— 5 minutes</span></h3>
+  <p>In <code>src/components/Panel.tsx</code>, change <code>"Depth"</code> to
+    <code>"Length"</code>. Save and watch it update without a reload.</p>
+  <p class="caption">Learns: hot module replacement, where interface text lives.</p>
+
+  <h3>2 · Add a unit <span style="color:#6b7280;font-weight:400">— 15 minutes</span></h3>
+  <p>Add feet. You will need to touch <code>UnitSystem</code> in
+    <code>src/types.ts</code>, <code>UNIT_FACTOR</code> in
+    <code>src/lib/format.ts</code>, and <code>UNITS</code> in
+    <code>Panel.tsx</code>. One foot is 304.8 mm.</p>
+  <div class="box note">
+    <span class="tag">Do this first</span>
+    <p>Add <code>'ft'</code> to the type and try to build <i>before</i> changing
+      anything else. TypeScript will list every place that must be updated. That
+      experience — the compiler handing you a to-do list — is the single best
+      argument for typed code, and you should feel it once early.</p>
+  </div>
+  <p class="caption">Learns: union types, exhaustiveness, how a change ripples.</p>
+
+  <h3>3 · Add a keyboard shortcut <span style="color:#6b7280;font-weight:400">— 15 minutes</span></h3>
+  <p>Make <span class="kbd">T</span> toggle the details panel. Open
+    <code>src/hooks/useHotkeys.ts</code>, find the <code>switch</code>, and add a
+    case calling <code>store.togglePanel()</code>. Then check the guards: does it
+    still work when a button has focus? Does it fire while you are typing in the
+    unit dropdown?</p>
+  <p class="caption">Learns: global event handling, reading state without subscribing.</p>
+
+  <h3>4 · Change the accent colour <span style="color:#6b7280;font-weight:400">— 20 minutes</span></h3>
+  <p>Make the app teal. Edit only <code>--accent</code> and its variants in
+    <code>src/styles/tokens.css</code> — both themes. Then find the one place the
+    3D scene needs telling too: <code>SKIN.mark</code> in
+    <code>src/viewer/Stage.ts</code>, because three.js materials cannot read CSS
+    variables.</p>
+  <p>Check contrast afterwards. Does <code>--accent-ink</code> still read on your
+    new colour in both themes?</p>
+  <p class="caption">Learns: design tokens, the CSS/WebGL boundary, contrast.</p>
+
+  <h3>5 · Show the surface area <span style="color:#6b7280;font-weight:400">— 45 minutes</span></h3>
+  <p>Add total surface area to the size section. In
+    <code>src/viewer/analyze.ts</code>, walk every triangle and sum the area of
+    each — half the length of the cross product of two of its edges. Add the
+    field to <code>SceneStats</code>, then render it in <code>Panel.tsx</code>.</p>
+  <p class="caption">Learns: reading geometry buffers, vector maths, extending a type end to end.</p>
+
+  <h3>6 · Bring back the angle tool <span style="color:#6b7280;font-weight:400">— 2 hours</span></h3>
+  <p>The most instructive exercise here, because it touches every layer. You
+    need: a new value in <code>MeasureTool</code>; three points instead of two in
+    <code>POINTS_NEEDED</code>; an <code>angleAt</code> function using the dot
+    product; an arc drawn in <code>Annotations.ts</code>; a card in the panel;
+    and a keyboard shortcut.</p>
+<pre><code><span class="k">export function</span> angleAt(from, vertex, to): <span class="t">number</span> {
+  <span class="k">const</span> u = from.clone().sub(vertex);
+  <span class="k">const</span> v = to.clone().sub(vertex);
+  <span class="k">const</span> lengths = u.length() * v.length();
+  <span class="k">if</span> (lengths &lt; <span class="n">1e-12</span>) <span class="k">return</span> <span class="n">0</span>;
+  <span class="k">const</span> cosine = THREE.MathUtils.clamp(u.dot(v) / lengths, <span class="n">-1</span>, <span class="n">1</span>);
+  <span class="k">return</span> THREE.MathUtils.radToDeg(Math.acos(cosine));
+}</code></pre>
+  <p>Note the <code>clamp</code>. Floating-point error can push the cosine a
+    hair past 1, and <code>Math.acos(1.0000001)</code> is <code>NaN</code> —
+    which then propagates silently into the interface. Guarding degenerate cases
+    is the recurring theme of every geometry function in this project.</p>
+  <p class="caption">Learns: the full vertical slice — type, engine, drawing, UI, keyboard.</p>
+
+  <h3>7 · Add a format <span style="color:#6b7280;font-weight:400">— 2 hours</span></h3>
+  <p>Add <code>.xyz</code> point clouds: a plain text file of
+    <code>x y z</code> per line. Write <code>src/viewer/loaders/xyz.ts</code>
+    following the shape of <code>off.ts</code>, add a row to
+    <code>FORMATS</code>, and a <code>case</code> in the dispatcher. Use
+    <code>THREE.Points</code> with <code>PointsMaterial</code> rather than a
+    mesh.</p>
+  <p class="caption">Learns: designing to an interface, why the loader contract exists.</p>
+
+  <h3>8 · Persist measurements <span style="color:#6b7280;font-weight:400">— 2 hours</span></h3>
+  <p>Save measurements to <code>localStorage</code> keyed by filename, and offer
+    to restore them when the same file is opened again.</p>
+  <p>The interesting part is not the storage — it is the design question. Is the
+    filename enough to identify a model? What if the file changed? Should you
+    hash the contents instead? There is no single right answer, and thinking it
+    through is the exercise.</p>
+  <p class="caption">Learns: persistence, identity, designing under ambiguity.</p>
+
+  <h3>9 · Add a second route <span style="color:#6b7280;font-weight:400">— 3 hours</span></h3>
+  <p>Install <code>react-router-dom</code> and add an <code>/about</code> page,
+    keeping the viewer at <code>/</code>. Follow chapter 17. Then build for
+    production, serve <code>dist/</code> with a plain static server, and load
+    <code>/about</code> directly — watch it 404, and understand why the rewrite
+    in <code>vercel.json</code> exists.</p>
+  <p class="caption">Learns: client routing, and the deployment trap that comes with it.</p>
+
+  <h3>10 · Build your own <span style="color:#6b7280;font-weight:400">— a weekend</span></h3>
+  <p>Start a new Vite + React + TypeScript project and rebuild one slice of this
+    from scratch: a canvas, a cube, orbit controls, and a panel showing its
+    dimensions. No copying — refer back only when stuck.</p>
+  <p>You will get it wrong in interesting ways. The engine will leak because you
+    forgot cleanup. The panel will re-render constantly because you selected the
+    whole store. The canvas will be blurry because you forgot
+    <code>setPixelRatio</code>. Every one of those is a paragraph in this
+    document that will suddenly mean something.</p>
+  <p class="caption">Learns: everything. This is the exercise that matters.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 28</p>
+  <h1>Mistakes this codebase avoids</h1>
+  <p class="lede">Every one of these was either found and fixed here, or
+    deliberately designed around. They are the most portable thing in this
+    document.</p>
+
+  <h2>28.1 In React</h2>
+  <table class="wrap">
+    <tr><th>Mistake</th><th>Instead</th></tr>
+    <tr><td>Subscribing to the whole store</td><td>Select the narrowest slice. A component that shows the unit should not re-render when the frame rate changes.</td></tr>
+    <tr><td>Effects with no cleanup</td><td>Anything created must be destroyed — listeners, timers, animation frames, WebGL contexts.</td></tr>
+    <tr><td>Array index as a list key</td><td>A stable id from the data.</td></tr>
+    <tr><td>Mutating state</td><td>Create a new array or object. React compares by identity.</td></tr>
+    <tr><td>Hooks after an early return</td><td>All hooks first, then the conditional return.</td></tr>
+    <tr><td><code>{count &amp;&amp; &lt;X /&gt;}</code></td><td><code>{count &gt; 0 &amp;&amp; &lt;X /&gt;}</code> — otherwise a literal <code>0</code> renders.</td></tr>
+    <tr><td>State for DOM references</td><td><code>useRef</code>.</td></tr>
+  </table>
+
+  <h2>28.2 In three.js</h2>
+  <table class="wrap">
+    <tr><th>Mistake</th><th>Instead</th></tr>
+    <tr><td>Never disposing</td><td>GPU memory is not garbage collected. Dispose geometries, materials, textures.</td></tr>
+    <tr><td>Rendering every frame regardless</td><td>Render on demand; invalidate when something changes.</td></tr>
+    <tr><td><code>scene.overrideMaterial</code> for render modes</td><td>It repaints the whole scene including your helpers. Swap materials on the model only.</td></tr>
+    <tr><td>Global clipping planes</td><td>They cut the grid and the floor too. Set them per material.</td></tr>
+    <tr><td>Ignoring <code>webglcontextlost</code></td><td>Handle it and call <code>preventDefault()</code>, or the canvas is black forever.</td></tr>
+    <tr><td>Allocating vectors in hot loops</td><td>Reuse module-level scratch objects.</td></tr>
+    <tr><td>Selecting after a drag</td><td>Compare pointer-down and pointer-up positions.</td></tr>
+  </table>
+
+  <h2>28.3 In CSS</h2>
+  <table class="wrap">
+    <tr><th>Mistake</th><th>Instead</th></tr>
+    <tr><td><code>100vh</code> on mobile</td><td><code>100dvh</code> — <code>vh</code> includes the space behind the address bar.</td></tr>
+    <tr><td><code>backdrop-filter</code> over a live canvas</td><td>Measured at 331 ms per frame here. Use it on small static chips only.</td></tr>
+    <tr><td>Removing focus outlines</td><td><code>:focus-visible</code> gives you a clean mouse experience and a usable keyboard one.</td></tr>
+    <tr><td>Hardcoding both halves of a colour pair</td><td>Token the background <i>and</i> the ink that sits on it.</td></tr>
+    <tr><td>Ignoring <code>prefers-reduced-motion</code></td><td>Four lines. No excuse.</td></tr>
+    <tr><td>A separate <code>.is-active</code> class</td><td>Style from <code>aria-pressed</code> so state and appearance cannot drift.</td></tr>
+  </table>
+
+  <h2>28.4 In architecture</h2>
+  <table class="wrap">
+    <tr><th>Mistake</th><th>Instead</th></tr>
+    <tr><td>Writing the same fact twice</td><td>Derive it. The "18 formats" bug — a hand-written list beside a registry of 22 — is exactly this.</td></tr>
+    <tr><td>Two sources of truth for one thing</td><td>Visibility lived in both the store and the scene graph once; the tree's icons went stale. One owner.</td></tr>
+    <tr><td>Adding a library before the problem</td><td>Let the problem ask for the tool. No router until there are routes.</td></tr>
+    <tr><td>Silent failure</td><td>If a circle cannot be fitted, say why and say what to do instead.</td></tr>
+    <tr><td>Fake progress bars</td><td><code>null</code> means indeterminate. Never invent a percentage.</td></tr>
+    <tr><td>Measuring after transforming</td><td>Take the file's real dimensions before normalising it for display.</td></tr>
+  </table>
+
+  <h2>28.5 The habit underneath all of them</h2>
+  <p>Nearly every entry above comes from the same discipline:
+    <span class="lead-in">know which thing owns which fact.</span> One owner for
+    the colour, one for the format list, one for visibility, one for the
+    measurement units. When two pieces of code both believe they are responsible
+    for something, they will disagree — not today, but on the day someone edits
+    one of them.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 29</p>
+  <h1>Glossary</h1>
+
+  <h3>Frontend and React</h3>
+  <table class="wrap">
+    <tr><td><b>Component</b></td><td>A function returning markup.</td></tr>
+    <tr><td><b>Props</b></td><td>A component's arguments. Flow downward only.</td></tr>
+    <tr><td><b>State</b></td><td>A value that causes a re-render when changed.</td></tr>
+    <tr><td><b>Hook</b></td><td>A function starting with <code>use</code> that taps into React's lifecycle.</td></tr>
+    <tr><td><b>Ref</b></td><td>A mutable box that survives renders without causing them.</td></tr>
+    <tr><td><b>Effect</b></td><td>Code that runs after render, usually to touch something outside React.</td></tr>
+    <tr><td><b>JSX</b></td><td>HTML-like syntax that compiles to function calls.</td></tr>
+    <tr><td><b>Prop drilling</b></td><td>Passing props through components that do not use them.</td></tr>
+    <tr><td><b>Selector</b></td><td>A function picking one slice of a store, so only that slice triggers re-renders.</td></tr>
+    <tr><td><b>Controlled input</b></td><td>A form element whose value comes from state.</td></tr>
+    <tr><td><b>Error boundary</b></td><td>A class component that catches render errors below it.</td></tr>
+    <tr><td><b>FOUC</b></td><td>Flash of unstyled content — the wrong theme appearing before the right one.</td></tr>
+    <tr><td><b>SPA</b></td><td>Single-page application: one HTML file, JavaScript swaps the content.</td></tr>
+    <tr><td><b>HMR</b></td><td>Hot module replacement — swapping a changed module without reloading.</td></tr>
+    <tr><td><b>Tree shaking</b></td><td>Dropping code nothing imports.</td></tr>
+    <tr><td><b>Code splitting</b></td><td>Producing several bundles so the browser loads only what it needs.</td></tr>
+  </table>
+
+  <h3>3D graphics</h3>
+  <table class="wrap">
+    <tr><td><b>WebGL</b></td><td>The browser's low-level GPU drawing API.</td></tr>
+    <tr><td><b>Mesh</b></td><td>Geometry plus material — one visible object.</td></tr>
+    <tr><td><b>Geometry</b></td><td>Arrays of vertex positions, normals and indices.</td></tr>
+    <tr><td><b>Material</b></td><td>How a surface responds to light.</td></tr>
+    <tr><td><b>Vertex</b></td><td>A point in space; a triangle has three.</td></tr>
+    <tr><td><b>Normal</b></td><td>A vector perpendicular to a surface, used for lighting.</td></tr>
+    <tr><td><b>Index buffer</b></td><td>A list of vertex numbers, so vertices can be shared between triangles.</td></tr>
+    <tr><td><b>Raycasting</b></td><td>Firing a ray to find what it hits — how clicking works in 3D.</td></tr>
+    <tr><td><b>NDC</b></td><td>Normalised device coordinates: the −1…+1 square the camera projects into.</td></tr>
+    <tr><td><b>Bounding box</b></td><td>The smallest axis-aligned box containing an object.</td></tr>
+    <tr><td><b>Scene graph</b></td><td>The tree of objects; transforms are inherited by children.</td></tr>
+    <tr><td><b>Tessellation</b></td><td>Converting mathematical surfaces into triangles.</td></tr>
+    <tr><td><b>B-rep</b></td><td>Boundary representation — how CAD stores exact shapes.</td></tr>
+    <tr><td><b>PBR</b></td><td>Physically based rendering — the metalness/roughness model.</td></tr>
+    <tr><td><b>Tone mapping</b></td><td>Compressing a wide brightness range into what a screen can show.</td></tr>
+    <tr><td><b>Z-fighting</b></td><td>Flickering where two surfaces are too close for depth precision.</td></tr>
+    <tr><td><b>Draw call</b></td><td>One instruction to the GPU. Fewer is faster.</td></tr>
+  </table>
+
+  <h3>Tooling and deployment</h3>
+  <table class="wrap">
+    <tr><td><b>Bundler</b></td><td>Combines many source files into few optimised ones.</td></tr>
+    <tr><td><b>Transpile</b></td><td>Convert one language version to another — TypeScript to JavaScript.</td></tr>
+    <tr><td><b>Content hash</b></td><td>A filename fingerprint derived from contents, enabling permanent caching.</td></tr>
+    <tr><td><b>Source map</b></td><td>A file letting dev tools show original source for minified code.</td></tr>
+    <tr><td><b>CI</b></td><td>Continuous integration — automated checks on every push.</td></tr>
+    <tr><td><b>Artifact</b></td><td>A file a CI run produces and stores.</td></tr>
+    <tr><td><b>Rewrite</b></td><td>Serving one path's content for another, without changing the URL.</td></tr>
+    <tr><td><b>CSP</b></td><td>Content Security Policy — an allow-list of where content may load from.</td></tr>
+    <tr><td><b>CORS</b></td><td>The rules governing cross-origin requests.</td></tr>
+    <tr><td><b>Semantic versioning</b></td><td><code>MAJOR.MINOR.PATCH</code> — breaking, feature, fix.</td></tr>
+    <tr><td><b>Lockfile</b></td><td>A record of exactly which dependency versions were installed.</td></tr>
+    <tr><td><b>WebAssembly</b></td><td>A compiled binary format that runs at near-native speed in the browser.</td></tr>
+    <tr><td><b>Blob URL</b></td><td>A temporary <code>blob:</code> URL pointing at in-memory data.</td></tr>
+    <tr><td><b>PWA</b></td><td>A web app installable like a native one, via a manifest.</td></tr>
+  </table>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 30</p>
+  <h1>Where to read more</h1>
+
+  <h2>30.1 Documentation worth actually reading</h2>
+  <table class="wrap">
+    <tr><td><b>MDN Web Docs</b><br /><code>developer.mozilla.org</code></td><td>The reference for HTML, CSS and JavaScript. Not a tutorial site — the place you go to find out precisely what something does. Bookmark it.</td></tr>
+    <tr><td><b>React</b><br /><code>react.dev</code></td><td>The rewritten docs are genuinely excellent. Read "Escape Hatches" in particular — it covers refs and effects, which is where most React confusion lives.</td></tr>
+    <tr><td><b>three.js</b><br /><code>threejs.org</code></td><td>The examples page is the real documentation. Every example has viewable source, and reading three of them teaches more than any tutorial.</td></tr>
+    <tr><td><b>Vite</b><br /><code>vite.dev</code></td><td>Short and clear. The "Features" page explains what you get for free.</td></tr>
+    <tr><td><b>TypeScript Handbook</b><br /><code>typescriptlang.org/docs/handbook</code></td><td>Read "Everyday Types" and "Narrowing" and you will have most of what daily work needs.</td></tr>
+    <tr><td><b>Zustand</b><br /><code>github.com/pmndrs/zustand</code></td><td>The README is the documentation, and it is short enough to read in one sitting.</td></tr>
+    <tr><td><b>web.dev</b><br /><code>web.dev</code></td><td>Google's performance and best-practice guides. "Learn CSS" and "Learn Accessibility" are both solid courses.</td></tr>
+  </table>
+
+  <h2>30.2 A suggested order</h2>
+  <ol>
+    <li><b>Solidify JavaScript first.</b> Frameworks are much easier once
+      closures, promises, <code>this</code>, destructuring and array methods are
+      second nature. Most "React is confusing" is really "JavaScript is
+      confusing".</li>
+    <li><b>Then React fundamentals</b> — components, props, state, effects.
+      Build three small things without a router or a state library.</li>
+    <li><b>Then TypeScript</b>, applied to something you already wrote in
+      JavaScript. Converting a working project teaches more than starting typed.</li>
+    <li><b>Then the platform</b> — CSS Grid, custom properties, accessibility,
+      the Fetch API, the browser's own capabilities. This is what separates
+      developers who can only work inside a framework from those who can work
+      anywhere.</li>
+    <li><b>Then tooling</b> — Vite, git, CI, deployment. It is less glamorous and
+      it is what makes you employable.</li>
+    <li><b>Then a specialism</b>, if you want one. 3D, data visualisation,
+      animation, editors. Depth in one area beats shallow familiarity with ten.</li>
+  </ol>
+
+  <h2>30.3 Three habits worth more than any framework</h2>
+  <p><span class="lead-in">Read source code.</span> Not tutorials — real
+    repositories. You have just read one end to end; that is a skill, and it
+    compounds. When a library surprises you, open its source. It is almost always
+    less magic than you expect.</p>
+  <p><span class="lead-in">Measure before you optimise.</span> The 331 ms frame
+    in chapter 18 was invisible until someone timed it, and no amount of reading
+    would have found it. Open the performance panel. Time things. Guessing about
+    performance is how weeks get wasted on the wrong problem.</p>
+  <p><span class="lead-in">Write down why.</span> Not what — the code says what.
+    Why this approach, what you tried first, what will break if it is changed.
+    Every non-obvious decision in this codebase has a comment explaining itself,
+    and that is the difference between a project someone can pick up and one they
+    have to reverse-engineer.</p>
+
+  <div class="box">
+    <span class="tag">Last thing</span>
+    <p>The application this document describes is about four thousand lines. It
+      is not big. What makes it worth studying is not its size but that every
+      line had a reason, several of the reasons were wrong and got fixed, and
+      the fixes are documented. Build something small and finish it properly.
+      That teaches more than starting something ambitious and abandoning it — and
+      a finished small thing is also the only kind you can show anyone.</p>
+  </div>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Appendix</p>
+  <h1>Quick reference</h1>
+
+  <h2>A · Keyboard</h2>
+  <table>
+    <tr><th>Key</th><th>Action</th></tr>
+    <tr><td><span class="kbd">Q</span> <span class="kbd">W</span> <span class="kbd">E</span></td><td>Shaded · wireframe · shaded with edges</td></tr>
+    <tr><td><span class="kbd">1</span>–<span class="kbd">6</span>, <span class="kbd">0</span></td><td>Front, back, left, right, top, bottom, isometric</td></tr>
+    <tr><td><span class="kbd">F</span></td><td>Fit the model to the screen</td></tr>
+    <tr><td><span class="kbd">G</span> <span class="kbd">S</span></td><td>Build plate · shadows</td></tr>
+    <tr><td><span class="kbd">M</span> <span class="kbd">D</span></td><td>Measure distance · measure diameter</td></tr>
+    <tr><td><span class="kbd">Backspace</span></td><td>Undo the last measuring point</td></tr>
+    <tr><td><span class="kbd">Esc</span></td><td>Put the tool away, then clear the selection</td></tr>
+    <tr><td><span class="kbd">⌘/Ctrl O</span> <span class="kbd">⌘/Ctrl S</span></td><td>Open a model · save a PNG</td></tr>
+    <tr><td><span class="kbd">⌘/Ctrl B</span> <span class="kbd">⌘/Ctrl J</span></td><td>Details panel · theme</td></tr>
+  </table>
+
+  <h2>B · Commands</h2>
+  <table>
+    <tr><td><code>npm install</code></td><td>Install dependencies</td></tr>
+    <tr><td><code>npm ci</code></td><td>Install exactly the lockfile (CI)</td></tr>
+    <tr><td><code>npm run dev</code></td><td>Dev server with hot reload</td></tr>
+    <tr><td><code>npm run typecheck</code></td><td>Type-check only</td></tr>
+    <tr><td><code>npm run build</code></td><td>Type-check, then build to <code>dist/</code></td></tr>
+    <tr><td><code>npm run preview</code></td><td>Serve the production build locally</td></tr>
+  </table>
+
+  <h2>C · Where to change what</h2>
+  <table class="wrap">
+    <tr><th>To change…</th><th>Edit</th></tr>
+    <tr><td>Any colour or font</td><td><code>src/styles/tokens.css</code></td></tr>
+    <tr><td>Colours inside the 3D scene</td><td><code>SKIN</code> in <code>src/viewer/Stage.ts</code></td></tr>
+    <tr><td>Panel content or layout</td><td><code>src/components/Panel.tsx</code></td></tr>
+    <tr><td>Tool rail buttons</td><td><code>src/components/ToolRail.tsx</code></td></tr>
+    <tr><td>Keyboard shortcuts</td><td><code>src/hooks/useHotkeys.ts</code></td></tr>
+    <tr><td>Supported formats</td><td><code>FORMATS</code> in <code>src/lib/formats.ts</code></td></tr>
+    <tr><td>Camera, picking, render modes</td><td><code>src/viewer/Engine.ts</code></td></tr>
+    <tr><td>Measuring logic</td><td><code>src/viewer/measure.ts</code></td></tr>
+    <tr><td>Application state and actions</td><td><code>src/store/useViewer.ts</code></td></tr>
+    <tr><td>Page title, meta tags, theme script</td><td><code>index.html</code></td></tr>
+    <tr><td>Build settings</td><td><code>vite.config.ts</code></td></tr>
+    <tr><td>Deployment and headers</td><td><code>vercel.json</code></td></tr>
+    <tr><td>CI pipeline</td><td><code>.github/workflows/ci.yml</code></td></tr>
+  </table>
+</section>

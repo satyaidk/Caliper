@@ -1,0 +1,455 @@
+<section class="part">
+  <div class="n">Part IV</div>
+  <h1>From repository to live site</h1>
+  <p>The build tool, the type checker, git, continuous integration and
+    deployment. This is the part most tutorials skip, and the part that turns a
+    folder of files into something other people can use.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 21</p>
+  <h1>Vite and the build</h1>
+  <p class="lede">Vite does two quite different jobs: it serves your source
+    directly during development, and it bundles it for production.</p>
+
+  <h2>21.1 What happens in development</h2>
+  <p>Modern browsers understand ES modules natively. Vite exploits that: it
+    serves your files almost unchanged, transforming each one only when the
+    browser asks for it.</p>
+  <p>The consequence is that startup time does not grow with your project. A
+    bundler like Webpack must process everything before serving the first page;
+    Vite processes the handful of files that page actually imports.</p>
+  <p>Dependencies are handled differently — they are pre-bundled once with
+    esbuild (written in Go, and roughly a hundred times faster than a JavaScript
+    bundler) and cached, because <code>three</code> alone is hundreds of small
+    modules and serving each individually would flood the browser with
+    requests.</p>
+
+  <h3>Hot Module Replacement</h3>
+  <p>Save a file and Vite pushes just that module to the browser, which swaps it
+    in place. With <code>@vitejs/plugin-react</code>, component state survives —
+    you can tweak the panel's styling without losing the model you have loaded.
+    That preservation is the entire reason the plugin exists.</p>
+
+  <h2>21.2 What happens in a production build</h2>
+  <p><code>npm run build</code> is <code>tsc -b &amp;&amp; vite build</code> —
+    two steps, and the order matters. TypeScript checks types first and stops
+    everything if there is an error. Vite would happily bundle broken types,
+    because it strips them without checking. Wiring the checker into the build
+    script is what makes CI meaningful.</p>
+  <p>Then Vite, using Rollup, does five things: resolves the import graph from
+    <code>index.html</code>, tree-shakes unreachable code, minifies, adds content
+    hashes to filenames, and rewrites the HTML to point at the hashed files.</p>
+
+  <h3>Content hashing and caching</h3>
+<pre class="file"><code>dist/assets/index-CFHW1v1l.js</code></pre>
+  <p>The hash is derived from the file's contents. Change the code and the name
+    changes. This is what makes it safe to tell browsers to cache those files
+    forever — a new deploy produces new names, so there is no stale-cache
+    problem, and no cache-busting query strings.</p>
+  <p><code>index.html</code> itself is never cached, because it is the file that
+    points at the hashed ones.</p>
+
+  <h2>21.3 <code>vite.config.ts</code></h2>
+<pre class="file"><code><span class="k">export default</span> defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: { <span class="s">'@'</span>: fileURLToPath(<span class="k">new</span> URL(<span class="s">'./src'</span>, <span class="k">import</span>.meta.url)) },
+  },
+  build: {
+    target: <span class="s">'es2022'</span>,
+    chunkSizeWarningLimit: <span class="n">1600</span>,
+    rollupOptions: {
+      output: {
+        manualChunks: { three: [<span class="s">'three'</span>], react: [<span class="s">'react'</span>, <span class="s">'react-dom'</span>] },
+      },
+    },
+  },
+});</code></pre>
+
+  <table class="wrap">
+    <tr><td><code>alias</code></td><td>Makes <code>@/store/useViewer</code> mean <code>src/store/useViewer</code>. Without it, a file three folders deep writes <code>../../../store/useViewer</code>, which breaks whenever a file moves. The alias must also be declared in <code>tsconfig.json</code> so the editor understands it.</td></tr>
+    <tr><td><code>target</code></td><td>How modern the output may be. <code>es2022</code> means no transpiling of features that all current browsers support — smaller, faster output at the cost of dropping very old browsers.</td></tr>
+    <tr><td><code>manualChunks</code></td><td>Splits vendor libraries into their own bundles so they cache independently of your code.</td></tr>
+  </table>
+
+  <h2>21.4 The <code>public/</code> folder</h2>
+  <p>Files in <code>public/</code> are copied to the output root untouched — no
+    hashing, no processing. Use it for things that must have a stable, known
+    URL: <code>robots.txt</code>, <code>manifest.webmanifest</code>,
+    <code>favicon.svg</code>, the social preview image.</p>
+  <p>Everything else — anything imported from your source — should live in
+    <code>src/</code> so it gets hashed and optimised.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 22</p>
+  <h1>TypeScript configuration</h1>
+
+<pre class="file"><code>{
+  <span class="s">"compilerOptions"</span>: {
+    <span class="s">"target"</span>: <span class="s">"ES2022"</span>,
+    <span class="s">"lib"</span>: [<span class="s">"ES2022"</span>, <span class="s">"DOM"</span>, <span class="s">"DOM.Iterable"</span>],
+    <span class="s">"module"</span>: <span class="s">"ESNext"</span>,
+    <span class="s">"moduleResolution"</span>: <span class="s">"bundler"</span>,
+    <span class="s">"jsx"</span>: <span class="s">"react-jsx"</span>,
+    <span class="s">"noEmit"</span>: <span class="k">true</span>,
+    <span class="s">"isolatedModules"</span>: <span class="k">true</span>,
+    <span class="s">"skipLibCheck"</span>: <span class="k">true</span>,
+    <span class="s">"strict"</span>: <span class="k">true</span>,
+    <span class="s">"noUnusedLocals"</span>: <span class="k">true</span>,
+    <span class="s">"noUnusedParameters"</span>: <span class="k">true</span>,
+    <span class="s">"noFallthroughCasesInSwitch"</span>: <span class="k">true</span>,
+    <span class="s">"baseUrl"</span>: <span class="s">"."</span>,
+    <span class="s">"paths"</span>: { <span class="s">"@/*"</span>: [<span class="s">"src/*"</span>] }
+  },
+  <span class="s">"include"</span>: [<span class="s">"src"</span>]
+}</code></pre>
+
+  <table class="wrap">
+    <tr><td><code>lib</code></td><td>Which built-in type definitions to load. <code>DOM</code> gives you <code>document</code> and <code>window</code>; without it the compiler does not believe the browser exists.</td></tr>
+    <tr><td><code>moduleResolution: "bundler"</code></td><td>Tells TypeScript that a bundler will resolve imports, so extensionless paths and package <code>exports</code> maps work the way Vite treats them.</td></tr>
+    <tr><td><code>jsx: "react-jsx"</code></td><td>The modern transform. This is why no file needs <code>import React from 'react'</code> just to use JSX.</td></tr>
+    <tr><td><code>noEmit: true</code></td><td>TypeScript checks and produces nothing. Vite does the actual compiling. Two tools, one job each.</td></tr>
+    <tr><td><code>isolatedModules</code></td><td>Requires every file to be compilable on its own, which is what esbuild needs. It is why type-only imports are written <code>import type { … }</code>.</td></tr>
+    <tr><td><code>skipLibCheck</code></td><td>Do not type-check inside <code>node_modules</code>. A large speed win, and you cannot fix those errors anyway.</td></tr>
+    <tr><td><code>paths</code></td><td>The editor's half of the <code>@/</code> alias. Vite has its own copy in <code>vite.config.ts</code>; both are needed and they must agree.</td></tr>
+  </table>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 23</p>
+  <h1>Version control</h1>
+  <p class="lede">Git is not a backup system. It is a record of <i>why</i> the
+    code looks the way it does, and the quality of that record is entirely up to
+    you.</p>
+
+  <h2>23.1 The branch model</h2>
+  <table class="wrap">
+    <tr><th>Branch</th><th>Rule</th></tr>
+    <tr><td><code>main</code></td><td>What is deployed. Always working. Only receives merges from <code>dev</code>.</td></tr>
+    <tr><td><code>dev</code></td><td>Where work lands. May be broken briefly.</td></tr>
+    <tr><td>feature branches</td><td>One per change, merged into <code>dev</code>.</td></tr>
+  </table>
+  <p>For a solo project this is close to the minimum that is still useful. The
+    value is that <code>main</code> always represents something shippable, so
+    "deploy the latest" is never a gamble.</p>
+
+<pre class="file"><code>git checkout dev
+git checkout -b feature/angle-tool     <span class="c"># branch off dev</span>
+<span class="c"># … work, commit …</span>
+git push -u origin feature/angle-tool  <span class="c"># open a PR against dev</span></code></pre>
+
+  <h2>23.2 Writing a commit message</h2>
+  <p>The format that has become standard: a summary line under about 70
+    characters in the imperative mood, a blank line, then prose explaining
+    <b>why</b>.</p>
+<pre class="file"><code>Stop the deploy failing over a setting a workflow cannot change
+
+Creating a GitHub Pages site through the API needs repository admin
+rights that GITHUB_TOKEN does not carry, whatever `permissions` says.
+That is why actions/configure-pages returns "Resource not accessible by
+integration", and no amount of workflow configuration fixes it.
+
+Failing every push over that is noise. The deploy now runs a preflight
+job that asks the API whether a Pages site exists …</code></pre>
+  <p>The diff already shows <i>what</i> changed. It can never show what you tried
+    first, what you ruled out, or why the obvious approach does not work. That is
+    what the body is for, and it is the message you will thank yourself for in
+    eight months.</p>
+  <p>Imperative mood — "Fix the leak", not "Fixed" or "Fixes" — because a commit
+    completes the sentence "applying this commit will…".</p>
+
+  <h2>23.3 <code>.gitignore</code></h2>
+<pre class="file"><code>node_modules
+dist
+*.local
+.DS_Store
+*.tsbuildinfo</code></pre>
+  <p>Never commit <code>node_modules</code> — it is reconstructible from
+    <code>package-lock.json</code> and is enormous. Never commit
+    <code>dist</code> — it is generated, and committing build output guarantees
+    merge conflicts on files nobody edits.</p>
+
+  <h2>23.4 <code>.gitattributes</code></h2>
+<pre class="file"><code>* text=auto eol=lf
+
+*.png binary
+*.stl binary
+…</code></pre>
+  <p>Windows ends lines with CRLF, everything else with LF. Without this, a file
+    edited on Windows can appear entirely rewritten to a Linux CI runner. The
+    <code>eol=lf</code> normalises text in the repository; the binary entries
+    stop git from "helpfully" corrupting images and model files.</p>
+
+  <h2>23.5 Why <code>package-lock.json</code> is committed</h2>
+  <p><code>package.json</code> says <code>"three": "^0.169.0"</code>, which means
+    "0.169.0 or any compatible later version". <code>package-lock.json</code>
+    records exactly which version was installed, down to every transitive
+    dependency.</p>
+  <p>Commit it, and <code>npm ci</code> installs precisely that set on every
+    machine and in CI. Without it, your build depends on the day it ran.</p>
+  <table class="wrap">
+    <tr><td><code>npm install</code></td><td>Resolves versions, may update the lockfile. For adding dependencies.</td></tr>
+    <tr><td><code>npm ci</code></td><td>Installs exactly the lockfile, fails if it disagrees with <code>package.json</code>, deletes <code>node_modules</code> first. For CI and reproducible builds.</td></tr>
+  </table>
+
+  <h2>23.6 Tags and the changelog</h2>
+<pre class="file"><code>git tag -a v1.0.0 -m <span class="s">"Caliper 1.0.0 — open a 3D model and measure it"</span>
+git push origin v1.0.0</code></pre>
+  <p>A tag is a permanent pointer to one commit. Semantic versioning gives the
+    three numbers meaning: <b>major</b> for breaking changes, <b>minor</b> for
+    new features, <b>patch</b> for fixes. <code>CHANGELOG.md</code> is the
+    human-readable version of the same information — grouped under
+    <i>Added</i>, <i>Fixed</i>, <i>Changed</i>, written for someone deciding
+    whether to upgrade.</p>
+
+  <div class="box note">
+    <span class="tag">A practical note on squash merges</span>
+    <p>GitHub's "Squash and merge" collapses a pull request into one new commit
+      on <code>main</code>. That commit is <i>not</i> an ancestor of your branch,
+      so git will report the branches as diverged even though the content is
+      identical, and <code>git merge --ff-only</code> will refuse.</p>
+    <p>The habit that keeps this tidy: after each PR lands, re-point your branch
+      at main — <code>git checkout dev &amp;&amp; git fetch origin &amp;&amp;
+      git reset --hard origin/main</code>. Otherwise the divergence compounds
+      and every future PR shows the whole history again.</p>
+  </div>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 24</p>
+  <h1>GitHub Actions, line by line</h1>
+  <p class="lede">Continuous integration means a machine builds your code on
+    every push, so "works on my machine" stops being a defence. Here is the
+    entire workflow, explained.</p>
+
+  <h2>24.1 What YAML is</h2>
+  <p>A data format, like JSON but indentation-based. Three things to know before
+    reading a workflow:</p>
+  <ul>
+    <li><b>Indentation is structure.</b> Two spaces per level, and never tabs —
+      a tab is a syntax error in YAML.</li>
+    <li><code>key: value</code> is a mapping; a leading <code>-</code> is a list
+      item.</li>
+    <li><code>|</code> starts a multi-line string that keeps its newlines. This
+      is how shell scripts are embedded in a step.</li>
+  </ul>
+
+  <h2>24.2 <code>.github/workflows/ci.yml</code></h2>
+<pre class="file"><code><span class="k">name</span>: CI
+
+<span class="k">on</span>:
+  <span class="k">push</span>:
+    <span class="k">branches</span>: [main, dev]
+  <span class="k">pull_request</span>:
+    <span class="k">branches</span>: [main, dev]
+  <span class="k">workflow_dispatch</span>:</code></pre>
+  <p><code>on</code> is the trigger. This runs on pushes to either long-lived
+    branch, on pull requests targeting them, and — thanks to
+    <code>workflow_dispatch</code> — from a button in the Actions tab, which is
+    invaluable when debugging.</p>
+
+<pre class="file"><code><span class="k">jobs</span>:
+  <span class="k">build</span>:
+    <span class="k">name</span>: Typecheck and build
+    <span class="k">runs-on</span>: ubuntu-latest</code></pre>
+  <p>A <b>job</b> runs on a fresh virtual machine. Jobs run in parallel unless
+    one declares <code>needs:</code> another. <code>ubuntu-latest</code> is the
+    cheapest and fastest runner.</p>
+
+<pre class="file"><code>    <span class="k">steps</span>:
+      - <span class="k">name</span>: Check out
+        <span class="k">uses</span>: actions/checkout@v4</code></pre>
+  <p>The runner starts empty — it does not have your code. <code>checkout</code>
+    clones the repository at the commit that triggered the run. Forget this step
+    and every subsequent one fails with "file not found".</p>
+  <p><code>uses</code> runs a published action; <code>@v4</code> pins the major
+    version so a breaking change upstream cannot break your pipeline overnight.</p>
+
+<pre class="file"><code>      - <span class="k">name</span>: Set up Node
+        <span class="k">uses</span>: actions/setup-node@v4
+        <span class="k">with</span>:
+          <span class="k">node-version-file</span>: .nvmrc
+          <span class="k">cache</span>: npm</code></pre>
+  <p>Reading the version from <code>.nvmrc</code> rather than hardcoding it means
+    your machine and CI can never drift — one file, one answer.
+    <code>cache: npm</code> caches <code>~/.npm</code> between runs, which
+    typically cuts install time from a minute to a few seconds.</p>
+
+<pre class="file"><code>      - <span class="k">name</span>: Install
+        <span class="k">run</span>: npm ci
+
+      - <span class="k">name</span>: Typecheck
+        <span class="k">run</span>: npm run typecheck
+
+      - <span class="k">name</span>: Build
+        <span class="k">run</span>: npm run build</code></pre>
+  <p><code>run</code> executes a shell command. If any step exits non-zero the
+    job fails immediately and later steps are skipped. That is the whole safety
+    mechanism: a type error or a failed build turns the commit red.</p>
+
+<pre class="file"><code>      - <span class="k">name</span>: Upload the build
+        <span class="k">uses</span>: actions/upload-artifact@v4
+        <span class="k">with</span>:
+          <span class="k">name</span>: dist-${{ github.sha }}
+          <span class="k">path</span>: dist
+          <span class="k">retention-days</span>: 7</code></pre>
+  <p><code>${{ … }}</code> is expression syntax. <code>github.sha</code> is the
+    commit hash, so each run's artifact is uniquely named and you can download
+    exactly what CI produced rather than rebuilding and hoping it matches.</p>
+
+  <h2>24.3 A war story worth learning from</h2>
+  <div class="box warn">
+    <span class="tag">The permissions wall</span>
+    <p>An earlier version of this repository deployed to GitHub Pages. It failed
+      on every push with <code>Resource not accessible by integration</code>.</p>
+    <p>The cause: creating a Pages site through the API requires repository
+      <i>admin</i> rights, and the <code>GITHUB_TOKEN</code> a workflow runs with
+      deliberately does not have them — no matter what the <code>permissions:</code>
+      block declares. It is a security boundary, not a configuration mistake, and
+      no amount of YAML could cross it.</p>
+    <p>Two lessons. First, when an error says "not accessible", ask what
+      <i>identity</i> is making the request before you change settings. Second, a
+      pipeline that fails on every push over something it cannot fix is worse
+      than no pipeline, because people learn to ignore red. The fix was to detect
+      the condition, explain it in the run summary, and skip — and eventually, to
+      move to a host without that restriction.</p>
+  </div>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 25</p>
+  <h1>Deploying on Vercel</h1>
+  <p class="lede">The build output is a folder of static files. Any web server
+    can host it — Vercel just removes every step between pushing and it being
+    live.</p>
+
+  <h2>25.1 Why there is no deploy workflow</h2>
+  <p>Vercel watches the repository through a git integration. There is no
+    workflow file, no API token to store, and nothing in
+    <code>.github/</code> to keep in step with the build. CI still runs and
+    checks types — the two jobs are independent, which is exactly right: one
+    verifies, the other ships.</p>
+
+  <h2>25.2 Setting it up</h2>
+  <ol>
+    <li>Import the repository at <b>vercel.com/new</b>.</li>
+    <li>Vercel reads <code>vercel.json</code> and detects everything.</li>
+    <li>Accept the defaults.</li>
+  </ol>
+  <table class="wrap">
+    <tr><th>Push to</th><th>Result</th></tr>
+    <tr><td><code>main</code></td><td>Production deployment on the live domain</td></tr>
+    <tr><td>any other branch</td><td>Preview deployment on its own URL</td></tr>
+    <tr><td>a pull request</td><td>Preview URL commented on the PR</td></tr>
+  </table>
+  <p>Preview deployments are the underrated part. Every branch gets a real,
+    shareable URL running the real build — you can test on a phone without
+    installing anything, and a reviewer can click rather than pulling your
+    branch.</p>
+
+  <h2>25.3 <code>vercel.json</code></h2>
+<pre class="file"><code>{
+  <span class="s">"framework"</span>: <span class="s">"vite"</span>,
+  <span class="s">"buildCommand"</span>: <span class="s">"npm run build"</span>,
+  <span class="s">"outputDirectory"</span>: <span class="s">"dist"</span>,
+
+  <span class="s">"rewrites"</span>: [{ <span class="s">"source"</span>: <span class="s">"/(.*)"</span>, <span class="s">"destination"</span>: <span class="s">"/index.html"</span> }],
+
+  <span class="s">"headers"</span>: [ … ]
+}</code></pre>
+
+  <h3>The rewrite</h3>
+  <p>Serve <code>index.html</code> for any path that is not a real file. As
+    covered in 17.3, this is what stops deep links 404ing in a single-page
+    application. Vercel checks the filesystem <i>before</i> applying rewrites, so
+    <code>/assets/index-abc.js</code> still serves the real file.</p>
+
+  <h3>Cache headers</h3>
+<pre class="file"><code>{
+  <span class="s">"source"</span>: <span class="s">"/assets/(.*)"</span>,
+  <span class="s">"headers"</span>: [{ <span class="s">"key"</span>: <span class="s">"Cache-Control"</span>,
+                <span class="s">"value"</span>: <span class="s">"public, max-age=31536000, immutable"</span> }]
+},
+{
+  <span class="s">"source"</span>: <span class="s">"/index.html"</span>,
+  <span class="s">"headers"</span>: [{ <span class="s">"key"</span>: <span class="s">"Cache-Control"</span>,
+                <span class="s">"value"</span>: <span class="s">"public, max-age=0, must-revalidate"</span> }]
+}</code></pre>
+  <p>One year for hashed assets, and <code>immutable</code> tells the browser not
+    even to send a revalidation request. Zero for the HTML shell. This pairing is
+    the whole caching strategy of a modern SPA, and it only works because the
+    asset filenames contain content hashes.</p>
+
+  <h2>25.4 Environment variables</h2>
+  <p>Caliper needs none — it has no backend. When you do need them, Vite exposes
+    only variables prefixed <code>VITE_</code> to client code:</p>
+<pre class="file"><code><span class="k">const</span> key = <span class="k">import</span>.meta.env.VITE_API_URL;</code></pre>
+  <div class="box warn">
+    <span class="tag">Anything in a frontend bundle is public</span>
+    <p>The prefix requirement exists to stop you leaking server secrets into
+      client code by accident. But understand the real rule: <b>a value compiled
+      into a JavaScript bundle can be read by anyone who opens dev tools.</b>
+      Public API endpoints and publishable keys are fine. Private keys are never
+      fine, in any framework, under any variable name.</p>
+  </div>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 26</p>
+  <h1>Security headers and the CSP</h1>
+  <p class="lede">Five headers, set once in <code>vercel.json</code>, that close
+    off entire categories of attack.</p>
+
+  <h2>26.1 The simple four</h2>
+  <table class="wrap">
+    <tr><th>Header</th><th>What it prevents</th></tr>
+    <tr><td><code>X-Content-Type-Options: nosniff</code></td><td>Stops the browser guessing a file's type from its contents. Without it, an uploaded "image" that is really JavaScript can be executed.</td></tr>
+    <tr><td><code>X-Frame-Options: DENY</code></td><td>Stops your site being embedded in an <code>iframe</code> on someone else's page — the basis of clickjacking.</td></tr>
+    <tr><td><code>Referrer-Policy: strict-origin-when-cross-origin</code></td><td>Sends only your domain, not the full URL, when a visitor follows a link away. Full URLs can leak identifiers.</td></tr>
+    <tr><td><code>Permissions-Policy: geolocation=(), camera=(), …</code></td><td>Switches off browser features the app never uses. If a dependency is ever compromised, it still cannot ask for the camera.</td></tr>
+  </table>
+
+  <h2>26.2 Content Security Policy</h2>
+  <p>The important one, and the one worth understanding properly. A CSP is an
+    allow-list of where content may be loaded from. Anything not listed is
+    blocked by the browser, which makes it the strongest defence there is against
+    cross-site scripting.</p>
+
+<pre class="file"><code>default-src <span class="s">'self'</span>;
+script-src  <span class="s">'self'</span> <span class="s">'unsafe-inline'</span> <span class="s">'wasm-unsafe-eval'</span>
+            https://cdn.jsdelivr.net https://www.gstatic.com;
+style-src   <span class="s">'self'</span> <span class="s">'unsafe-inline'</span> https://fonts.googleapis.com;
+font-src    <span class="s">'self'</span> https://fonts.gstatic.com;
+img-src     <span class="s">'self'</span> data: blob:;
+connect-src <span class="s">'self'</span> data: blob: https:;
+worker-src  <span class="s">'self'</span> blob:;
+object-src  <span class="s">'none'</span>;
+base-uri    <span class="s">'self'</span>;
+form-action <span class="s">'none'</span>;
+frame-ancestors <span class="s">'none'</span></code></pre>
+
+  <p>Read it as a series of questions about this specific application:</p>
+  <table class="wrap">
+    <tr><td><code>default-src 'self'</code></td><td>The fallback: same origin only, unless a more specific rule says otherwise.</td></tr>
+    <tr><td><code>script-src … jsdelivr, gstatic</code></td><td>The CAD and BIM kernels are loaded from jsDelivr; the Draco decoder from Google's static host. <b>Without these two entries the CAD formats silently stop working.</b></td></tr>
+    <tr><td><code>'wasm-unsafe-eval'</code></td><td>Compiling WebAssembly counts as evaluation. This permits WASM specifically, without the blanket <code>'unsafe-eval'</code> that would also allow <code>eval()</code>.</td></tr>
+    <tr><td><code>'unsafe-inline'</code></td><td>An honest compromise. The theme script in the head is inline and must run before paint. The stricter alternative is a per-build nonce or hash, which is worth doing on an application handling sensitive data.</td></tr>
+    <tr><td><code>img-src … data: blob:</code></td><td>Screenshots become <code>data:</code> URLs; dropped files become <code>blob:</code> URLs. Both are needed for the app to function.</td></tr>
+    <tr><td><code>connect-src … https:</code></td><td>Deliberately open, because <code>?model=</code> may point at any host the visitor chooses.</td></tr>
+    <tr><td><code>object-src 'none'</code></td><td>No Flash, no applets. Free win.</td></tr>
+    <tr><td><code>frame-ancestors 'none'</code></td><td>The modern replacement for <code>X-Frame-Options</code>. Both are set for older browsers.</td></tr>
+  </table>
+
+  <div class="box">
+    <span class="tag">How to write a CSP without breaking your app</span>
+    <p>Start with <code>Content-Security-Policy-Report-Only</code>, which logs
+      violations to the console without blocking anything. Use the site normally,
+      exercise every feature, collect the violations, then widen the policy to
+      cover exactly those and switch to enforcing mode. Writing one from scratch
+      and enforcing it immediately will break something you did not think of —
+      in this app it would have been the CAD kernels, which most people never
+      load.</p>
+  </div>
+</section>

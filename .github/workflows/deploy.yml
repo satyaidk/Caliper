@@ -1,8 +1,6 @@
 name: Deploy
 
 # Only main deploys. dev is free to be broken; main is the live site.
-#
-# One-time setup in the repository: Settings → Pages → Source → GitHub Actions.
 on:
   push:
     branches: [main]
@@ -19,8 +17,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # GitHub Pages has to be switched on once, by a repository admin, by hand.
+  # A workflow cannot do it for you: creating a Pages site through the API needs
+  # admin rights that GITHUB_TOKEN does not carry, no matter what `permissions`
+  # says — which is why actions/configure-pages fails with the singularly
+  # unhelpful "Resource not accessible by integration".
+  #
+  # Failing every single push over a setting nobody has clicked yet is noise.
+  # So: check first. If Pages is off, say exactly what to click and skip the
+  # deploy. Skipped jobs do not fail a run, so main stays green until there is
+  # something real to report.
+  preflight:
+    name: Check that Pages is on
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.probe.outputs.enabled }}
+    steps:
+      - name: Look for a Pages site
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" > /dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Pages is enabled — deploying." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Deploy skipped — GitHub Pages is not enabled"
+              echo
+              echo "Turn it on once, by hand:"
+              echo
+              echo "**Settings → Pages → Build and deployment → Source → _GitHub Actions_**"
+              echo
+              echo "Then re-run this workflow. Nothing in the repository needs to change."
+              echo
+              echo "Prefer not to use Pages? \`netlify.toml\` and \`vercel.json\` are both"
+              echo "ready to go, and neither needs a toggle. If you go that way, delete"
+              echo "\`.github/workflows/deploy.yml\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=Pages is not enabled::Settings > Pages > Build and deployment > Source > GitHub Actions, then re-run. Deploy skipped, not failed."
+          fi
+
   build:
     name: Build for Pages
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out
@@ -41,12 +83,10 @@ jobs:
           BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build
 
+      # No `enablement` input: preflight has already established the site
+      # exists, so this only reads its configuration.
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          # Turns Pages on via the API instead of failing when it has never
-          # been switched on by hand. Needs the pages: write permission above.
-          enablement: true
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v3

@@ -5,7 +5,7 @@ rendered on the device, so nothing is uploaded and there is nothing to install.
 
 ![Caliper](public/og.png)
 
-**Version 1.0.0** — deliberately small. It opens models, shows their size, and
+**Version 1.0.1** — deliberately small. It opens models, shows their size, and
 measures distances and diameters. That is the whole app. Everything else is on
 the roadmap below rather than in the way.
 
@@ -52,6 +52,7 @@ npm run dev        # http://localhost:5173
 npm run build      # -> dist/
 npm run preview    # serve the build
 npm run typecheck
+npm test           # unit tests
 ```
 
 Node 22 or newer (see `.nvmrc`, which pins 24). Node 20 reached end of life in
@@ -64,9 +65,24 @@ April 2026 and GitHub's runners have started warning about it.
 | `main` | What is deployed. Only merge into it from `dev`. |
 | `dev` | Where work lands. Feature branches merge here first. |
 
-Every push and pull request on either branch runs **CI** — typecheck plus a
-production build (`.github/workflows/ci.yml`). That is the only workflow in the
-repository.
+Every push and pull request on either branch runs **CI** — unit tests,
+typecheck and a production build (`.github/workflows/ci.yml`). That is the only
+workflow in the repository.
+
+## Testing
+
+```bash
+npm test          # 39 unit tests over the pure logic — no framework, no deps
+```
+
+Unit tests use Node's built-in runner and its native TypeScript support, so
+there is nothing to install. They cover number formatting, the format registry,
+`pickPrimary`, and the measuring maths including every degenerate case.
+
+The browser tests live in [`e2e/`](e2e/) and are run by hand before a release.
+They open one real file per supported extension against a server that replays
+the exact headers from `vercel.json` — which is the only place a whole class of
+production-only bug is visible. See [`e2e/README.md`](e2e/README.md).
 
 Releases are tagged `vMAJOR.MINOR.PATCH` and written up in
 [CHANGELOG.md](CHANGELOG.md). Bump the version in `package.json` and add the

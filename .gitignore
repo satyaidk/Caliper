@@ -6,3 +6,4 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 *.tsbuildinfo
+e2e/fixtures

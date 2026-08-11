@@ -197,7 +197,7 @@
   </div>
 
   <div class="meta">
-    <div>Version 1.0.0</div>
+    <div>Version 1.0.1</div>
     <div>github.com/satyaidk/Caliper</div>
     <div>React 18 · TypeScript 5 · three.js r169 · Vite 5 · Zustand 4</div>
     <div>Written for a frontend developer learning by taking a real app apart</div>
@@ -509,6 +509,9 @@ npm run dev
 
 <span class="c"># type-check the whole project without producing any files</span>
 npm run typecheck
+
+<span class="c"># run the unit tests — Node's own test runner, no framework to install</span>
+npm test
 
 <span class="c"># produce the deployable bundle in dist/</span>
 npm run build</code></pre>
@@ -2884,7 +2887,7 @@ git push origin v1.0.0</code></pre>
     cross-site scripting.</p>
 
 <pre class="file"><code>default-src <span class="s">'self'</span>;
-script-src  <span class="s">'self'</span> <span class="s">'unsafe-inline'</span> <span class="s">'wasm-unsafe-eval'</span>
+script-src  <span class="s">'self'</span> <span class="s">'unsafe-inline'</span> <span class="s">'unsafe-eval'</span> <span class="s">'wasm-unsafe-eval'</span>
             https://cdn.jsdelivr.net https://www.gstatic.com;
 style-src   <span class="s">'self'</span> <span class="s">'unsafe-inline'</span> https://fonts.googleapis.com;
 font-src    <span class="s">'self'</span> https://fonts.gstatic.com;
@@ -2900,13 +2903,38 @@ frame-ancestors <span class="s">'none'</span></code></pre>
   <table class="wrap">
     <tr><td><code>default-src 'self'</code></td><td>The fallback: same origin only, unless a more specific rule says otherwise.</td></tr>
     <tr><td><code>script-src … jsdelivr, gstatic</code></td><td>The CAD and BIM kernels are loaded from jsDelivr; the Draco decoder from Google's static host. <b>Without these two entries the CAD formats silently stop working.</b></td></tr>
-    <tr><td><code>'wasm-unsafe-eval'</code></td><td>Compiling WebAssembly counts as evaluation. This permits WASM specifically, without the blanket <code>'unsafe-eval'</code> that would also allow <code>eval()</code>.</td></tr>
+    <tr><td><code>'wasm-unsafe-eval'</code></td><td>Compiling WebAssembly counts as evaluation, and this permits it specifically.</td></tr>
+    <tr><td><code>'unsafe-eval'</code></td><td>Required, and it was learned the hard way — see below.</td></tr>
     <tr><td><code>'unsafe-inline'</code></td><td>An honest compromise. The theme script in the head is inline and must run before paint. The stricter alternative is a per-build nonce or hash, which is worth doing on an application handling sensitive data.</td></tr>
     <tr><td><code>img-src … data: blob:</code></td><td>Screenshots become <code>data:</code> URLs; dropped files become <code>blob:</code> URLs. Both are needed for the app to function.</td></tr>
     <tr><td><code>connect-src … https:</code></td><td>Deliberately open, because <code>?model=</code> may point at any host the visitor chooses.</td></tr>
     <tr><td><code>object-src 'none'</code></td><td>No Flash, no applets. Free win.</td></tr>
     <tr><td><code>frame-ancestors 'none'</code></td><td>The modern replacement for <code>X-Frame-Options</code>. Both are set for older browsers.</td></tr>
   </table>
+
+  <div class="box warn">
+    <span class="tag">A CSP bug that only existed in production</span>
+    <p>This policy originally carried <code>'wasm-unsafe-eval'</code> without
+      <code>'unsafe-eval'</code>, on the reasonable-sounding theory that the app
+      only needs to compile WebAssembly and never to evaluate a string.</p>
+    <p>Every CAD and BIM format broke. Opening a <code>.step</code> file gave
+      <i>"Evaluating a string as JavaScript violates the following Content
+      Security Policy directive"</i>. The Emscripten runtimes these kernels are
+      built with do evaluate strings — <code>rhino3dm</code> calls
+      <code>new Function</code> twice — and Chrome reports blocked WebAssembly
+      through the same message, so the two causes are indistinguishable from the
+      console alone.</p>
+    <p>What makes it worth studying is <b>where it could be caught</b>. Unit
+      tests cannot see it: the code is correct. <code>npm run dev</code> cannot
+      see it: the dev server sends no headers. <code>npm run preview</code>
+      cannot see it either — same files, still no headers. It appeared only on
+      the deployed site, in the one configuration nothing tested.</p>
+    <p>The fix was two-part: add <code>'unsafe-eval'</code>, and add
+      <code>e2e/serve-production.mjs</code>, which serves <code>dist/</code>
+      with the headers read straight out of <code>vercel.json</code> so the
+      sweep in <code>e2e/formats.mjs</code> exercises the real policy. It cannot
+      drift from production, because it has no configuration of its own.</p>
+  </div>
 
   <div class="box">
     <span class="tag">How to write a CSP without breaking your app</span>
@@ -2915,8 +2943,7 @@ frame-ancestors <span class="s">'none'</span></code></pre>
       exercise every feature, collect the violations, then widen the policy to
       cover exactly those and switch to enforcing mode. Writing one from scratch
       and enforcing it immediately will break something you did not think of —
-      in this app it would have been the CAD kernels, which most people never
-      load.</p>
+      in this app it was the CAD kernels, which most people never load.</p>
   </div>
 </section>
 
@@ -3246,6 +3273,7 @@ frame-ancestors <span class="s">'none'</span></code></pre>
     <tr><td><code>npm ci</code></td><td>Install exactly the lockfile (CI)</td></tr>
     <tr><td><code>npm run dev</code></td><td>Dev server with hot reload</td></tr>
     <tr><td><code>npm run typecheck</code></td><td>Type-check only</td></tr>
+    <tr><td><code>npm test</code></td><td>Unit tests (Node's built-in runner)</td></tr>
     <tr><td><code>npm run build</code></td><td>Type-check, then build to <code>dist/</code></td></tr>
     <tr><td><code>npm run preview</code></td><td>Serve the production build locally</td></tr>
   </table>

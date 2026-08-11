@@ -30,6 +30,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Node's own runner, so there is no framework to install and nothing to
+      # keep in step with the build.
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npm run build
 

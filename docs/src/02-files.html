@@ -15,11 +15,15 @@
 │   └── ci.yml            <i>typecheck + build on every push (ch. 24)</i>
 ├── <b>docs/</b>          <i>this document and its source</i>
 ├── <b>public/</b>        <i>copied to the site root untouched</i>
-│   ├── favicon.svg  icon.svg      <i>browser tab and app icons</i>
-│   ├── manifest.webmanifest       <i>makes it installable (ch. 5)</i>
-│   ├── og.png                     <i>social preview image</i>
-│   └── robots.txt  sitemap.xml    <i>search engine hints</i>
+│   ├── favicon.ico  favicon-32.png  <i>browser tab icons</i>
+│   ├── icon-192.png  icon-512.png   <i>installed app icons (ch. 5)</i>
+│   ├── icon-maskable.png            <i>Android's adaptive icon</i>
+│   ├── apple-touch-icon.png         <i>the iOS home screen</i>
+│   ├── manifest.webmanifest         <i>makes it installable (ch. 5)</i>
+│   ├── og.png                       <i>social preview image</i>
+│   └── robots.txt  sitemap.xml      <i>search engine hints</i>
 ├── <b>src/</b>
+│   ├── <b>assets/</b>       <i>logo.png, hashed by the bundler</i>
 │   ├── <b>components/</b>   <i>React. No three.js in here.</i>
 │   │   ├── EmptyState.tsx  Fallback.tsx  Gizmo.tsx
 │   │   ├── Icons.tsx       Panel.tsx     StatusStrip.tsx
@@ -125,6 +129,7 @@
     <tr><td><code>og:*</code>, <code>twitter:*</code></td><td>Open Graph tags. When the link is pasted into Slack, WhatsApp or a social network, these decide the title, description and preview image.</td></tr>
     <tr><td><code>theme-color</code></td><td>Colours the browser chrome on mobile. Two are declared, one per colour scheme.</td></tr>
     <tr><td><code>manifest</code></td><td>Points at <code>manifest.webmanifest</code>, which lets the browser offer "install this app".</td></tr>
+    <tr><td><code>icon</code>, <code>apple-touch-icon</code></td><td>The tab and home-screen artwork, declared at several sizes so the browser picks rather than resamples. <code>favicon.ico</code> is listed first only because a bare request for <code>/favicon.ico</code> is still made by tools that never read the markup.</td></tr>
   </table>
 
   <h3>The mount point</h3>

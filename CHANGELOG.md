@@ -2,6 +2,21 @@
 
 All notable changes to Caliper. Versions follow [semantic versioning](https://semver.org).
 
+## [1.0.2] — 2026-08-12
+
+### Changed
+
+- **New logo.** The line-drawn caliper glyph is replaced everywhere by the
+  isometric mark — a measured cube inside a hex badge. It appears in the top
+  rail, the browser tab, the installed app icon and the social preview.
+- **Icons are raster now.** The old mark was two SVGs; artwork with gradients
+  and a glow is not something SVG carries cheaply, so `public/` holds PNGs at
+  the sizes browsers actually ask for (32, 192, 512, 180 for iOS) plus a
+  maskable 512 with the safe-zone padding Android crops to. `favicon.ico`
+  stays for the clients that request it without reading the markup.
+- The top rail's mark now carries the accessible name. The wordmark beside it
+  is hidden below 520px, and it used to be the only thing announcing the app.
+
 ## [1.0.1] — 2026-08-12
 
 ### Fixed

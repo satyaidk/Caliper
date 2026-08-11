@@ -141,28 +141,3 @@ export const IconClose = ({ size = 14 }: Props) => (
     <path d="M4.6 4.6l10.8 10.8M15.4 4.6L4.6 15.4" />
   </svg>
 );
-
-/**
- * The wordmark. Two jaws closing on a span, with the span itself picked out in
- * amber — the app's whole proposition at 22 pixels.
- */
-export const IconCaliper = ({ size = 22 }: Props) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M4.6 4.5v15M19.4 4.5v15"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      opacity=".85"
-    />
-    <path d="M4.6 12h14.8" stroke="var(--accent)" strokeWidth="1.7" strokeLinecap="round" />
-    <path
-      d="M8.2 9.2L5.2 12l3 2.8M15.8 9.2l3 2.8-3 2.8"
-      stroke="var(--accent)"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      opacity=".75"
-    />
-  </svg>
-);

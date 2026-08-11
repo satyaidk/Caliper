@@ -1,7 +1,8 @@
 import { useViewer } from '@/store/useViewer';
 import { bytes, shortName } from '@/lib/format';
 import { useIsCompact } from '@/hooks/useMediaQuery';
-import { IconCaliper, IconCamera, IconMoon, IconOpen, IconPanel, IconSun } from './Icons';
+import { IconCamera, IconMoon, IconOpen, IconPanel, IconSun } from './Icons';
+import logoUrl from '@/assets/logo.png';
 
 export function TopRail({ onOpen, onScreenshot }: { onOpen: () => void; onScreenshot: () => void }) {
   const model = useViewer((s) => s.model);
@@ -14,9 +15,13 @@ export function TopRail({ onOpen, onScreenshot }: { onOpen: () => void; onScreen
 
   return (
     <header className="toprail area-top">
+      {/* The name lives on the image, because the wordmark beside it is dropped
+          on a narrow phone and the mark would otherwise go unannounced. */}
       <div className="mark">
-        <IconCaliper />
-        <span className="mark-word">Caliper</span>
+        <img className="mark-logo" src={logoUrl} alt="Caliper" width={26} height={26} />
+        <span className="mark-word" aria-hidden>
+          Caliper
+        </span>
       </div>
 
       <div className="filecrumb">

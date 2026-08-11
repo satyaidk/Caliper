@@ -31,6 +31,15 @@
   display: block;
 }
 
+/* The mark is artwork rather than a glyph, so it is sized once here and the
+   rail never has to think about it again. */
+.mark-logo {
+  display: block;
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
 /* Stamped across the beam the way a maker's mark is: wide, capitalised, cut
    shallow. Archivo's width axis is doing the work no letter-spacing can. */
 .mark-word {

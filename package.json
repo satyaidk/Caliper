@@ -1,7 +1,7 @@
 {
   "name": "caliper",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "Open a 3D model in the browser and measure it. Mesh, CAD and BIM formats, nothing uploaded.",
   "license": "MIT",

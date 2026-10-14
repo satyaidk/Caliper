@@ -1,0 +1,168 @@
+/* ---------------------------------------------------------------------------
+   Caliper design tokens
+
+   The interface follows Bambu Studio, the slicer most people opening a 3D
+   model in 2026 already have open in another window. The values below come
+   from its source (src/slic3r/GUI/Widgets/StateColor.cpp, GLCanvas3D.cpp,
+   BBLTopbar.cpp): the dark slate top bar it draws in both themes, its grey
+   surfaces, its flat canvas, and its brand green. Where one of its values fails
+   WCAG AA for text, the token keeps Bambu's hue and moves only the lightness,
+   and the comment says so.
+
+   Four colour systems, each with one job:
+
+     green    — active: the tool you are holding, the tab you are on, the
+                primary action, the selection on stage
+     orange   — measurement: every dimension drawn on the model
+     triad    — position: X red, Y green, Z blue, the convention every 3D tool
+                uses, on the gizmo, the size rows and the per-axis splits
+     grey     — everything else
+
+   Green and the Y axis share a hue, as they do in Bambu Studio itself. They
+   never share a context: green marks controls, Y marks a direction.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  /* --- top bar: Bambu's BBLTopbar, rgb(38, 46, 48) in both themes --------- */
+  --topbar: #262e30;
+  --topbar-raise: #323b3e;
+  --topbar-line: #3a4447;
+  --topbar-ink: #ffffff;
+  --topbar-ink-2: #aeb4b7;
+
+  /* --- brand green ------------------------------------------------------------
+     #00AE42 is Bambu's BrandGreen; #21A452 is what its dark mode maps it to.
+     White text on either is under 3:1, so filled buttons use a deeper green
+     that carries white at 4.6:1, and green text gets its own lighter token. */
+  --accent: #21a452;
+  --accent-text: #37b865;
+  --accent-fill: #00873a;
+  --accent-fill-hover: #007a34;
+  --accent-fill-press: #006c2e;
+  --accent-ink: #ffffff;
+  --accent-wash: #283232;
+  --accent-line: rgba(55, 184, 101, 0.55);
+
+  /* --- surfaces: Bambu dark mode ------------------------------------------- */
+  --app: #242428;
+  --panel: #2d2d31;
+  --raise: #36363c;
+  --raise-2: #3e3e45;
+  --sunken: #26262a;
+
+  --line: #3e3e45;
+  --line-strong: #4c4c55;
+
+  /* --- canvas: GLCanvas3D's flat background, 0.329 / 0.329 / 0.353 -------- */
+  --canvas: #54545a;
+  --canvas-ink: #f2f2f3;
+  --canvas-ink-2: #c9c9cc;
+  --float: rgba(45, 45, 49, 0.94);
+  --float-line: rgba(255, 255, 255, 0.07);
+
+  /* --- ink: #EFEFF0 and #B3B3B4 are Bambu's; #818183 is lifted to #a9a9ad so
+     muted text clears 4.5:1 on every surface it sits on, hover included ---- */
+  --ink: #efeff0;
+  --ink-2: #b3b3b4;
+  --ink-3: #a9a9ad;
+  --ink-4: #5a5a5f;
+
+  /* --- status -------------------------------------------------------------- */
+  --warn: #ff8a3d;
+  --danger: #ff6e72;
+  --ok: var(--accent-text);
+  --link: #479ef5;
+
+  /* --- measurement: Bambu's COL_BAMBU_CHANGE orange ----------------------- */
+  --mark: #ff7a1a;
+
+  /* --- axis triad ---------------------------------------------------------- */
+  --axis-x: #ff5f5c;
+  --axis-y: #5bd45b;
+  --axis-z: #5c8dff;
+
+  /* --- pipelines: mesh and BIM borrow the triad, CAD takes Bambu's violet -- */
+  --pipe-mesh: var(--axis-z);
+  --pipe-cad: #af7cff;
+  --pipe-bim: var(--axis-y);
+
+  /* --- type ----------------------------------------------------------------
+     Bambu Studio ships HarmonyOS Sans, which is not on a font CDN. Onest is the
+     closest neutral grotesque that is, and it carries tabular figures, so a
+     readout does not reflow while the model turns. One family throughout. */
+  --font: 'Onest', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --t-xs: 0.6875rem; /* 11px — key caps, units         */
+  --t-sm: 0.75rem; /* 12px — secondary rows, status  */
+  --t-md: 0.8125rem; /* 13px — controls, list rows     */
+  --t-lg: 0.9375rem; /* 15px — section titles          */
+  --t-xl: 1.25rem; /* 20px — panel headline          */
+  --t-2xl: 1.75rem; /* 28px — start page headline     */
+
+  /* --- geometry ------------------------------------------------------------ */
+  --r-xs: 3px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 999px;
+
+  --topbar-h: 44px;
+  --status-h: 26px;
+  --side-w: 312px;
+
+  --ease: cubic-bezier(0.22, 0.68, 0.32, 1);
+  --dur: 140ms;
+
+  --scrim: rgba(10, 10, 12, 0.6);
+  --shadow-float: 0 6px 22px -6px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 18px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* --- light theme: Bambu's default palette ---------------------------------- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --accent: #00ae42;
+  --accent-text: #007a34;
+  --accent-wash: #edfaf2;
+  --accent-line: rgba(0, 174, 66, 0.5);
+
+  --app: #f1f1f1;
+  --panel: #ffffff;
+  --raise: #f8f8f8;
+  --raise-2: #eeeeee;
+  --sunken: #f4f4f4;
+
+  --line: #e8e8e8;
+  --line-strong: #cecece;
+
+  --canvas: #e7e7e7;
+  --canvas-ink: #262e30;
+  --canvas-ink-2: #4c5458;
+  --float: rgba(255, 255, 255, 0.95);
+  --float-line: rgba(38, 46, 48, 0.08);
+
+  /* #262E30 and #6B6B6B are Bambu's TextPrimary and TextMuted. */
+  --ink: #262e30;
+  --ink-2: #474f52;
+  --ink-3: #6b6b6b;
+  --ink-4: #a6a9aa;
+
+  --warn: #b94f00;
+  --danger: #d01b1b;
+  --link: #0068b8;
+
+  --mark: #e25e00;
+
+  --axis-x: #cf2f2b;
+  --axis-y: #2a8a2a;
+  --axis-z: #2c5fd0;
+
+  --pipe-cad: #7b45d6;
+
+  --scrim: rgba(38, 46, 48, 0.36);
+  --shadow-float: 0 4px 16px -4px rgba(38, 46, 48, 0.18), 0 1px 2px rgba(38, 46, 48, 0.08);
+  --shadow-pop: 0 18px 48px -14px rgba(38, 46, 48, 0.3);
+}

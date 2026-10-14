@@ -1,0 +1,728 @@
+<section class="part">
+  <div class="n">Part III</div>
+  <h1>The ideas behind the code</h1>
+  <p>React patterns, state management, 3D graphics and the measuring mathematics
+    — explained from first principles, using this application as the worked
+    example. Read these in order.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 13</p>
+  <h1>React, as used here</h1>
+  <p class="lede">React's whole idea is one sentence: <b>you describe what the
+    screen should look like for a given state, and React works out the DOM
+    changes.</b> Everything else is detail.</p>
+
+  <h2>13.1 Components and JSX</h2>
+<pre class="file"><code><span class="k">function</span> Row({ label, value }: { label: <span class="t">string</span>; value: <span class="t">string</span> }) {
+  <span class="k">return</span> (
+    &lt;div className=<span class="s">"field"</span>&gt;
+      &lt;span className=<span class="s">"field-label"</span>&gt;{label}&lt;/span&gt;
+      &lt;span className=<span class="s">"field-value"</span>&gt;{value}&lt;/span&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+  <p>A component is a function that returns markup. JSX is syntax sugar — the
+    compiler turns those tags into function calls. Two consequences:
+    <code>className</code> instead of <code>class</code> (because
+    <code>class</code> is a reserved word), and <code>{}</code> to drop back into
+    JavaScript.</p>
+  <p>Props are the function's arguments. They flow <b>down</b> only. A child can
+    never write to its parent's props — if it needs to cause a change, the parent
+    passes down a callback.</p>
+
+  <h2>13.2 The hooks this project uses</h2>
+  <table class="wrap">
+    <tr><th>Hook</th><th>What it is for</th><th>Used in</th></tr>
+    <tr><td><code>useState</code></td><td>A value that, when changed, re-renders the component.</td><td><code>useMediaQuery</code>, <code>useFileDrop</code></td></tr>
+    <tr><td><code>useEffect</code></td><td>Run code after render; clean up when dependencies change or the component unmounts.</td><td><code>Viewport</code>, <code>Gizmo</code>, <code>App</code></td></tr>
+    <tr><td><code>useRef</code></td><td>A mutable box that survives renders and does <i>not</i> trigger them.</td><td>DOM nodes, the drag counter, the animation frame id</td></tr>
+    <tr><td><code>useCallback</code></td><td>Keep a function's identity stable between renders.</td><td><code>App</code>, <code>useFileDrop</code></td></tr>
+    <tr><td><code>useMemo</code></td><td>Keep a computed value's identity stable between renders.</td><td><code>App</code></td></tr>
+  </table>
+
+  <h3><code>useState</code></h3>
+<pre class="file"><code><span class="k">const</span> [dragging, setDragging] = useState(<span class="k">false</span>);</code></pre>
+  <p>Array destructuring gives you the current value and a setter. Calling the
+    setter schedules a re-render. Two rules that catch everyone once:</p>
+  <ul>
+    <li><span class="lead-in">State updates are not immediate.</span> Reading the
+      variable right after setting it gives the old value — the new one arrives
+      on the next render.</li>
+    <li><span class="lead-in">Never mutate state.</span>
+      <code>list.push(x); setList(list)</code> does nothing, because it is the
+      same array reference and React compares by identity. Write
+      <code>setList([...list, x])</code>.</li>
+  </ul>
+
+  <h3><code>useEffect</code> and its dependency array</h3>
+<pre class="file"><code>useEffect(() =&gt; {
+  <span class="c">// … set something up …</span>
+  <span class="k">return</span> () =&gt; { <span class="c">/* … tear it down … */</span> };
+}, [attach, detach]);</code></pre>
+  <p>The array at the end is the contract: re-run this effect whenever one of
+    these values changes. Three shapes:</p>
+  <table class="wrap">
+    <tr><td><code>[]</code></td><td>Run once on mount, clean up on unmount.</td></tr>
+    <tr><td><code>[a, b]</code></td><td>Run on mount and whenever <code>a</code> or <code>b</code> changes.</td></tr>
+    <tr><td>omitted</td><td>Run after <i>every</i> render. Almost always a mistake.</td></tr>
+  </table>
+  <p>The cleanup function is the half people forget. If your effect adds an event
+    listener, starts a timer, opens a connection or creates a 3D engine, the
+    cleanup must undo it. Otherwise you leak — and in <code>StrictMode</code>,
+    React deliberately mounts, unmounts and remounts every component in
+    development specifically to make that leak visible.</p>
+
+  <h3><code>useRef</code> versus <code>useState</code></h3>
+  <p>Both hold a value across renders. The difference is that changing a ref does
+    not re-render. Use a ref when the value is not displayed:</p>
+<pre class="file"><code><span class="k">const</span> canvasRef = useRef&lt;<span class="t">HTMLCanvasElement</span>&gt;(<span class="k">null</span>);   <span class="c">// a DOM node</span>
+<span class="k">const</span> depth     = useRef(<span class="n">0</span>);                        <span class="c">// a running count</span>
+<span class="k">const</span> raf       = useRef(<span class="n">0</span>);                        <span class="c">// an animation frame id</span></code></pre>
+  <p>In <code>useFileDrop</code>, <code>dragging</code> is state because it shows
+    an overlay; <code>depth</code> is a ref because it is bookkeeping. Getting
+    that split right is most of what makes a component efficient.</p>
+
+  <h3>Why <code>useCallback</code> and <code>useMemo</code> exist</h3>
+<pre class="file"><code>useHotkeys(useMemo(() =&gt; ({ open: openPicker, screenshot }), [openPicker, screenshot]));</code></pre>
+  <p>Every render creates new function and object values. If one of those is in
+    an effect's dependency array, the effect re-runs every render — here, that
+    would tear down and re-register the keyboard listener sixty times a second.
+    <code>useMemo</code> and <code>useCallback</code> keep the identity stable so
+    the dependency comparison passes.</p>
+  <div class="box warn">
+    <span class="tag">Do not reach for these by default</span>
+    <p>They are not free — they cost memory and make code harder to read. Use
+      them when a value feeds a dependency array or a memoised child, not "for
+      performance" in general. Premature memoisation is as much of a smell as
+      premature optimisation anywhere else.</p>
+  </div>
+
+  <h2>13.3 The rules of hooks</h2>
+  <p>Two rules, and they are absolute:</p>
+  <ol>
+    <li>Only call hooks at the top level of a component or another hook. Never
+      inside a condition, loop or nested function.</li>
+    <li>Only call them from React functions.</li>
+  </ol>
+  <p>The reason is mechanical: React tracks hooks by <i>call order</i>. If a
+    condition skips one, every subsequent hook shifts by one slot and reads
+    another hook's state. This is why <code>Panel.tsx</code> calls all of its
+    <code>useViewer</code> hooks before the <code>if (!model) return</code>, not
+    after.</p>
+
+  <h2>13.4 Keys in lists</h2>
+<pre class="file"><code>{measurements.map((measurement) =&gt; (
+  &lt;li key={measurement.id} className=<span class="s">"measure"</span>&gt; … &lt;/li&gt;
+))}</code></pre>
+  <p>A key tells React which item is which across renders, so it can move
+    elements instead of rebuilding them. Use a stable id from your data. Using
+    the array index is a bug waiting to happen: delete the first measurement and
+    every subsequent key shifts, so React reuses the wrong DOM node and any
+    internal state — focus, scroll position, an animation midway — lands on the
+    wrong row.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 14</p>
+  <h1>Zustand, from scratch</h1>
+  <p class="lede">Zustand is about a kilobyte. Understanding what it actually
+    does removes most of the mystery from state management generally.</p>
+
+  <h2>14.1 What a store really is</h2>
+  <p>Strip the library away and a store is three things: a value, a list of
+    functions to call when it changes, and a way to change it.</p>
+<pre class="file"><code><span class="c">// A minimal store, written by hand.</span>
+<span class="k">function</span> createStore(initial) {
+  <span class="k">let</span> state = initial;
+  <span class="k">const</span> listeners = <span class="k">new</span> Set();
+
+  <span class="k">return</span> {
+    getState: () =&gt; state,
+    setState: (partial) =&gt; {
+      state = { ...state, ...partial };
+      listeners.forEach((l) =&gt; l());
+    },
+    subscribe: (listener) =&gt; {
+      listeners.add(listener);
+      <span class="k">return</span> () =&gt; listeners.delete(listener);
+    },
+  };
+}</code></pre>
+  <p>That is the whole concept. Zustand adds a React hook that subscribes on
+    mount, unsubscribes on unmount, and — crucially — only re-renders when the
+    <i>slice you selected</i> changed.</p>
+
+  <h2>14.2 Creating the store</h2>
+<pre class="file"><code><span class="k">export const</span> useViewer = create&lt;<span class="t">ViewerState</span>&gt;((set, get) =&gt; ({
+  model: <span class="k">null</span>,
+  unit: <span class="s">'mm'</span>,
+
+  setUnit(unit) {
+    set({ unit });
+  },
+
+  frameSelection() {
+    <span class="k">const</span> { engine, selection } = get();   <span class="c">// read current state</span>
+    <span class="k">if</span> (engine &amp;&amp; selection) engine.frameSelection(selection.id);
+  },
+}));</code></pre>
+  <p><code>set</code> writes, <code>get</code> reads the current value without
+    subscribing. Actions live beside data, so a component imports one thing.</p>
+
+  <h2>14.3 Selectors and re-renders</h2>
+<pre class="file"><code><span class="k">const</span> model = useViewer((s) =&gt; s.model);</code></pre>
+  <p>After every <code>set</code>, Zustand runs each subscriber's selector and
+    compares the result to the previous one with <code>Object.is</code>. Same
+    result, no re-render.</p>
+  <div class="box warn">
+    <span class="tag">The object-selector trap</span>
+    <p><code>useViewer((s) =&gt; ({ a: s.a, b: s.b }))</code> creates a
+      <i>new object</i> every time, so the identity check always fails and the
+      component re-renders on every store change. Either select the two values
+      separately, or pass a shallow-equality comparator. This project selects
+      separately, which is simpler and always correct.</p>
+  </div>
+
+  <h2>14.4 Using the store outside React</h2>
+<pre class="file"><code><span class="k">const</span> store = useViewer.getState();
+<span class="k">const</span> engine = <span class="k">new</span> <span class="t">Engine</span>(canvas, { onFrame: store.setFrame, … });</code></pre>
+  <p>This is how the 3D engine talks to the UI without importing React. It is
+    handed plain functions from the store and calls them when something happens.
+    <code>getState()</code> works anywhere — event handlers, timers, class
+    methods — because the store lives outside the component tree.</p>
+
+  <h2>14.5 When you need a store at all</h2>
+  <p>Not always. Reach for one when state is genuinely shared across distant
+    parts of the tree, or when it must be readable from non-React code. A
+    dropdown's open/closed state belongs in <code>useState</code> in the
+    dropdown, not in a global store — putting local state in a global store is
+    as much of a mistake as prop-drilling shared state.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 15</p>
+  <h1>three.js, from scratch</h1>
+  <p class="lede">Every 3D scene, in any engine, is the same five nouns: a scene,
+    a camera, some meshes, some lights and a renderer.</p>
+
+  <h2>15.1 The five nouns</h2>
+  <table class="wrap">
+    <tr><td><b>Scene</b></td><td>The container. A tree of objects, each with a position, rotation and scale.</td></tr>
+    <tr><td><b>Camera</b></td><td>The point of view. A perspective camera has a field of view and near/far clipping distances.</td></tr>
+    <tr><td><b>Mesh</b></td><td>A visible object = <b>geometry</b> (the shape) + <b>material</b> (how the surface responds to light).</td></tr>
+    <tr><td><b>Light</b></td><td>Illumination. Without one, most materials render black.</td></tr>
+    <tr><td><b>Renderer</b></td><td>Takes a scene and a camera and draws a frame onto a canvas.</td></tr>
+  </table>
+
+<pre class="file"><code><span class="k">const</span> scene    = <span class="k">new</span> THREE.<span class="t">Scene</span>();
+<span class="k">const</span> camera   = <span class="k">new</span> THREE.<span class="t">PerspectiveCamera</span>(<span class="n">42</span>, width / height, <span class="n">0.01</span>, <span class="n">4000</span>);
+<span class="k">const</span> renderer = <span class="k">new</span> THREE.<span class="t">WebGLRenderer</span>({ canvas });
+
+scene.add(<span class="k">new</span> THREE.<span class="t">Mesh</span>(geometry, material));
+renderer.render(scene, camera);</code></pre>
+
+  <p>Those four arguments to the camera are field of view in degrees, aspect
+    ratio, and the near and far planes. Anything closer than near or further than
+    far is not drawn. Setting near to a very small number causes
+    <b>z-fighting</b> — surfaces flickering against each other — because depth
+    precision is spent on empty space. Caliper computes both from the model's
+    size for exactly this reason.</p>
+
+  <h2>15.2 Geometry is just arrays</h2>
+<pre class="file"><code><span class="k">const</span> geometry = <span class="k">new</span> THREE.<span class="t">BufferGeometry</span>();
+geometry.setAttribute(<span class="s">'position'</span>, <span class="k">new</span> THREE.<span class="t">Float32BufferAttribute</span>(positions, <span class="n">3</span>));
+geometry.setIndex(indices);
+geometry.computeVertexNormals();</code></pre>
+  <p>A shape is a flat array of numbers. <code>positions</code> holds
+    <code>x, y, z, x, y, z, …</code> and the <code>3</code> says how many
+    numbers make one vertex.</p>
+  <p>The <b>index</b> is an optimisation with real consequences. A cube has 8
+    corners but 12 triangles = 36 vertex slots. Storing 8 positions and 36
+    indices is smaller and, more importantly, tells the GPU that triangles
+    <i>share</i> corners — which is what lets normals be averaged into smooth
+    shading.</p>
+  <p>A <b>normal</b> is a vector pointing away from the surface at each vertex.
+    It is how a material knows how much light a point receives.
+    <code>computeVertexNormals()</code> calculates them from the triangles when
+    the file did not supply them.</p>
+
+  <div class="box note">
+    <span class="tag">Why STL gets special treatment</span>
+    <p>STL stores every triangle independently, with no shared vertices at all —
+      a cube arrives as 36 unconnected points. <code>mergeVertices</code> welds
+      coincident ones back together, which is what makes both smooth shading and
+      clean edge outlines possible. It is one line in <code>mesh.ts</code> and it
+      is the difference between a faceted blob and a model.</p>
+  </div>
+
+  <h2>15.3 Materials</h2>
+  <table class="wrap">
+    <tr><td><code>MeshStandardMaterial</code></td><td>Physically based. Has <code>metalness</code> and <code>roughness</code>, responds to lights and to the environment. The default for models here.</td></tr>
+    <tr><td><code>MeshBasicMaterial</code></td><td>Ignores light entirely — a flat colour. Used for the build plate, so it does not catch the key light's hotspot.</td></tr>
+    <tr><td><code>LineBasicMaterial</code></td><td>For lines. Always one device pixel wide, whatever you set.</td></tr>
+    <tr><td><code>ShadowMaterial</code></td><td>Invisible except where a shadow falls. The trick that lets a shadow land on nothing.</td></tr>
+  </table>
+
+  <h2>15.4 The scene graph and transforms</h2>
+<pre class="file"><code><span class="k">const</span> holder = <span class="k">new</span> THREE.<span class="t">Group</span>();
+holder.add(object);
+
+holder.scale.setScalar(scale);
+holder.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);</code></pre>
+  <p>Transforms are inherited: move a group and everything inside moves with it.
+    Caliper uses this deliberately — the loaded model keeps whatever transform
+    its file gave it, and all the framing happens on a wrapper group. A file that
+    places its geometry a kilometre from the origin still lands centred on the
+    plate, and its own coordinates are left untouched so measurements can be
+    converted back.</p>
+<pre class="file"><code><span class="k">private</span> toModel(world: THREE.<span class="t">Vector3</span>): THREE.<span class="t">Vector3</span> {
+  <span class="k">if</span> (!<span class="k">this</span>.holder) <span class="k">return</span> world.clone();
+  <span class="k">return</span> <span class="k">this</span>.holder.worldToLocal(world.clone());
+}</code></pre>
+  <p><code>worldToLocal</code> is the inverse of that wrapper transform. It is how
+    a click in viewer space becomes a number in the file's own units.</p>
+
+  <h2>15.5 Raycasting</h2>
+<pre class="file"><code>raycaster.setFromCamera(pointer, camera);
+<span class="k">const</span> hits = raycaster.intersectObjects(modelGroup.children, <span class="k">true</span>);</code></pre>
+  <p>Fire a ray from the camera through a normalised screen point and test it
+    against every triangle. The results come back sorted nearest-first, each with
+    the object, the exact 3D <code>point</code>, the <code>distance</code>, and
+    the <code>face</code> that was hit. That <code>face</code> — its three vertex
+    indices — is what the snapping in the next chapter is built on.</p>
+
+  <h2>15.6 Disposal</h2>
+<pre class="file"><code>mesh.geometry.dispose();
+material.dispose();
+texture.dispose();
+renderer.dispose();</code></pre>
+  <p>Say it again because it is the most common three.js bug: JavaScript's
+    garbage collector does not free GPU memory. Every geometry, material, texture
+    and render target you create must be disposed explicitly.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 16</p>
+  <h1>The measuring mathematics</h1>
+  <p class="lede">The core feature, and the most interesting maths in the
+    project. All of it lives in <code>src/viewer/measure.ts</code>.</p>
+
+  <h2>16.1 The problem with a raw hit</h2>
+  <p>A raycast returns the exact point where the ray met a triangle. That point
+    is almost never what a person meant. They were aiming at a corner, and they
+    hit three pixels away from it. A measurement that is "nearly" between two
+    corners is not a measurement.</p>
+
+  <h2>16.2 Snapping</h2>
+  <p>The insight: every triangle offers seven better candidates than the raw hit
+    — three corners, three edge midpoints, and the centroid.</p>
+<pre class="file"><code><span class="k">const</span> candidates: <span class="t">Candidate</span>[] = [
+  { point: a, kind: <span class="s">'vertex'</span>,   rank: <span class="n">0</span> },
+  { point: b, kind: <span class="s">'vertex'</span>,   rank: <span class="n">0</span> },
+  { point: c, kind: <span class="s">'vertex'</span>,   rank: <span class="n">0</span> },
+  { point: a.clone().add(b).multiplyScalar(<span class="n">0.5</span>), kind: <span class="s">'midpoint'</span>, rank: <span class="n">1</span> },
+  { point: b.clone().add(c).multiplyScalar(<span class="n">0.5</span>), kind: <span class="s">'midpoint'</span>, rank: <span class="n">1</span> },
+  { point: c.clone().add(a).multiplyScalar(<span class="n">0.5</span>), kind: <span class="s">'midpoint'</span>, rank: <span class="n">1</span> },
+  { point: a.clone().add(b).add(c).divideScalar(<span class="n">3</span>),  kind: <span class="s">'centre'</span>,  rank: <span class="n">2</span> },
+];</code></pre>
+  <p>A midpoint is the average of two corners; a centroid is the average of
+    three. Both fall straight out of vector addition.</p>
+
+  <h3>Measuring "close" in the right space</h3>
+<pre class="file"><code><span class="k">for</span> (<span class="k">const</span> candidate <span class="k">of</span> candidates) {
+  <span class="k">const</span> screen   = toScreen(candidate.point, camera, width, height);
+  <span class="k">const</span> distance = Math.hypot(screen.x - cursor.x, screen.y - cursor.y);
+  <span class="k">if</span> (distance &gt; bestDistance) <span class="k">continue</span>;
+  <span class="k">if</span> (best &amp;&amp; distance === bestDistance &amp;&amp; candidate.rank &gt;= best.rank) <span class="k">continue</span>;
+  best = candidate;
+  bestDistance = distance;
+}</code></pre>
+  <div class="box">
+    <span class="tag">The key design decision</span>
+    <p>Distance is measured <b>on screen, in pixels</b> — not in 3D. If it were
+      measured in 3D, the snap radius would feel enormous when zoomed out and
+      vanish when zoomed in. In screen space, 14 pixels is 14 pixels at any zoom,
+      which is what the hand is actually doing. Whenever an interaction competes
+      with a camera, ask which space the user is working in.</p>
+  </div>
+  <p>The <code>rank</code> breaks ties toward the more deliberate target: a
+    corner beats a midpoint beats a centroid at equal distance, because a corner
+    is what someone aims at.</p>
+
+  <h3>Projecting 3D to 2D</h3>
+<pre class="file"><code><span class="k">function</span> toScreen(world, camera, width, height) {
+  _projected.copy(world).project(camera);
+  <span class="k">return</span> {
+    x: (_projected.x * <span class="n">0.5</span> + <span class="n">0.5</span>) * width,
+    y: (-_projected.y * <span class="n">0.5</span> + <span class="n">0.5</span>) * height,
+  };
+}</code></pre>
+  <p><code>project()</code> applies the camera's matrices to give normalised
+    device coordinates in the range −1…+1. The arithmetic remaps that to pixels,
+    flipping Y because screens count downward.</p>
+  <p>Note <code>_projected</code> is a module-level vector reused on every call.
+    This runs for seven candidates on every pointer move — allocating seven new
+    vectors each time would create constant garbage-collection pressure. Reusing
+    scratch objects in hot paths is standard practice in graphics code.</p>
+
+  <h2>16.3 Distance</h2>
+<pre class="file"><code><span class="k">const</span> delta = model[<span class="n">1</span>].clone().sub(model[<span class="n">0</span>]);
+<span class="k">if</span> (delta.lengthSq() &lt; COINCIDENT) <span class="k">return</span> <span class="k">null</span>;
+<span class="k">return</span> {
+  value: delta.length(),
+  delta: [Math.abs(delta.x), Math.abs(delta.y), Math.abs(delta.z)],
+};</code></pre>
+  <p>Straight Pythagoras in three dimensions. The per-axis split is often more
+    useful than the diagonal — "how far apart are these holes horizontally" is a
+    more common question than the true 3D span.</p>
+  <p><code>lengthSq()</code> again avoids a square root for a comparison. And the
+    conversion to model space happens <i>before</i> the subtraction, so the
+    number is in the file's units rather than the viewer's.</p>
+
+  <h2>16.4 Fitting a circle through three points</h2>
+  <p>The diameter tool takes three points on an arc and finds the circle through
+    them. In 2D this is the classic circumcircle; in 3D the three points define a
+    plane and the problem reduces to the same thing.</p>
+<pre class="file"><code><span class="k">export function</span> circleThrough(a, b, c) {
+  <span class="k">const</span> ab = b.clone().sub(a);
+  <span class="k">const</span> ac = c.clone().sub(a);
+  <span class="k">const</span> normal = ab.clone().cross(ac);
+
+  <span class="k">const</span> denominator = <span class="n">2</span> * normal.lengthSq();
+  <span class="k">if</span> (denominator &lt; <span class="n">1e-18</span>) <span class="k">return</span> <span class="k">null</span>;      <span class="c">// collinear — no circle exists</span>
+
+  <span class="k">const</span> toCentre = normal.clone().cross(ab).multiplyScalar(ac.lengthSq())
+    .add(ac.clone().cross(normal).multiplyScalar(ab.lengthSq()))
+    .divideScalar(denominator);
+
+  <span class="k">return</span> { centre: a.clone().add(toCentre), radius: toCentre.length() };
+}</code></pre>
+
+  <p>Two vector operations do the work.</p>
+  <p><span class="lead-in">The cross product</span> of two vectors gives a third
+    perpendicular to both. Its <i>length</i> equals the area of the parallelogram
+    they span — which is zero exactly when they are parallel. That is why
+    <code>normal.lengthSq()</code> being near zero is the collinearity test: if
+    the three points lie on a line, no circle passes through them, and the
+    function returns <code>null</code> instead of dividing by zero and producing
+    <code>Infinity</code>.</p>
+  <p><span class="lead-in">The formula itself</span> is the standard
+    circumcentre in vector form. You do not need to derive it, but you should
+    recognise the shape of the guard around it. Every geometric formula has a
+    degenerate case, and handling it explicitly — rather than letting a
+    <code>NaN</code> propagate into the interface — is the difference between
+    code that works and code that works on your test file.</p>
+
+  <p>When it returns <code>null</code>, the engine reports why:</p>
+<pre class="file"><code>diameter: <span class="s">'Those three points sit in a straight line, so no circle passes '</span> +
+          <span class="s">'through them. Spread them around the arc.'</span>,</code></pre>
+  <p>An error message that says what to do next is worth ten that say what went
+    wrong.</p>
+
+  <h2>16.5 World space versus model space</h2>
+  <p>Every measurement stores both.</p>
+<pre class="file"><code><span class="k">export interface</span> <span class="t">MeasurePoint</span> {
+  world: [<span class="t">number</span>, <span class="t">number</span>, <span class="t">number</span>];   <span class="c">// what the annotation is drawn from</span>
+  model: [<span class="t">number</span>, <span class="t">number</span>, <span class="t">number</span>];   <span class="c">// what the readout shows</span>
+  kind: <span class="t">SnapKind</span>;
+}</code></pre>
+  <p>The engine scales every model to a fixed 8-unit diagonal so lighting and the
+    grid behave the same for a bolt and a building. Drawing must happen in that
+    space; the number a person reads must not. Keeping both, rather than
+    converting on the fly, means the annotation never drifts from its label.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 17</p>
+  <h1>Routing — and why this app has none</h1>
+  <p class="lede">You asked about routing. The honest answer is that Caliper has
+    no router, and understanding <i>why</i> teaches more than adding one would.</p>
+
+  <h2>17.1 What routing is</h2>
+  <p>Routing maps a URL to a screen. In a traditional website the server does
+    this: <code>/about</code> returns the about page. In a single-page
+    application the server returns the same HTML for every path, and JavaScript
+    decides what to render based on <code>window.location</code>.</p>
+
+  <h2>17.2 Why this app does not need it</h2>
+  <p>Caliper has exactly one screen. There is no About page, no settings page, no
+    list-then-detail flow. What looks like navigation — the panel opening, the
+    measure tool activating — is state, not location. Nobody wants to bookmark
+    "the measure tool is selected", and nobody expects the back button to undo
+    it.</p>
+  <div class="box">
+    <span class="tag">The test for whether something belongs in the URL</span>
+    <p>Should this survive a refresh? Should it be shareable as a link? Should
+      the back button undo it? Three yeses means it is a route. In Caliper only
+      one thing passes: <i>which model is open</i> — and that is handled by a
+      query parameter without any router at all.</p>
+  </div>
+
+<pre class="file"><code><span class="c">// The entire routing layer of this application.</span>
+<span class="k">const</span> params = <span class="k">new</span> URLSearchParams(window.location.search);
+<span class="k">const</span> raw    = params.get(<span class="s">'model'</span>);</code></pre>
+  <p>Adding React Router for that would mean roughly 12 kB of JavaScript, a new
+    set of concepts, and a wrapper around the whole tree — to read one query
+    string the platform already parses for you.</p>
+
+  <h2>17.3 What routing would look like if you added it</h2>
+  <p>Suppose version 2 gains a gallery of saved models, a settings page and a
+    shareable per-model view. Now three URLs matter and a router earns its
+    place.</p>
+<pre class="file"><code>npm install react-router-dom</code></pre>
+<pre class="file"><code><span class="k">import</span> { createBrowserRouter, RouterProvider, useParams, Link } <span class="k">from</span> <span class="s">'react-router-dom'</span>;
+
+<span class="k">const</span> router = createBrowserRouter([
+  { path: <span class="s">'/'</span>,             element: &lt;<span class="t">Viewer</span> /&gt; },
+  { path: <span class="s">'/gallery'</span>,      element: &lt;<span class="t">Gallery</span> /&gt; },
+  { path: <span class="s">'/model/:id'</span>,    element: &lt;<span class="t">Viewer</span> /&gt; },
+  { path: <span class="s">'*'</span>,             element: &lt;<span class="t">NotFound</span> /&gt; },
+]);
+
+<span class="k">function</span> App() {
+  <span class="k">return</span> &lt;<span class="t">RouterProvider</span> router={router} /&gt;;
+}</code></pre>
+
+  <p>Inside a route, the dynamic segment is read with a hook:</p>
+<pre class="file"><code><span class="k">function</span> Viewer() {
+  <span class="k">const</span> { id } = useParams();          <span class="c">// '/model/abc' -&gt; id === 'abc'</span>
+  …
+}</code></pre>
+
+  <p>And you navigate with <code>Link</code> rather than <code>a</code>, so the
+    browser does not reload the page:</p>
+<pre class="file"><code>&lt;<span class="t">Link</span> to=<span class="s">"/gallery"</span>&gt;Gallery&lt;/<span class="t">Link</span>&gt;</code></pre>
+
+  <h3>The one server-side requirement</h3>
+  <p>If someone loads <code>/gallery</code> directly, the server must return
+    <code>index.html</code> rather than a 404 — because that file does not exist
+    on disk. Caliper already has this configured, which is why the rewrite is in
+    <code>vercel.json</code> despite there being no router yet:</p>
+<pre class="file"><code><span class="s">"rewrites"</span>: [{ <span class="s">"source"</span>: <span class="s">"/(.*)"</span>, <span class="s">"destination"</span>: <span class="s">"/index.html"</span> }]</code></pre>
+  <p>This is the single most common deployment bug in single-page applications:
+    it works locally, works when you click through, and 404s when someone shares
+    a deep link. Vercel checks the filesystem before applying rewrites, so real
+    files like <code>/assets/index.js</code> still serve correctly.</p>
+
+  <h2>17.4 The lesson</h2>
+  <p>Do not install a router because React apps have routers. Install one when
+    you have more than one URL that matters. The same reasoning applies to state
+    libraries, component libraries and everything else: <span class="lead-in">let
+    the problem ask for the tool.</span></p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 18</p>
+  <h1>Making it fast</h1>
+  <p class="lede">Seven techniques, each responding to a measured problem rather
+    than a guess.</p>
+
+  <h2>18.1 On-demand rendering</h2>
+  <p>Draw only when something changed. A still model costs zero GPU work. Covered
+    in 10.1 — it is the largest single win in the project.</p>
+
+  <h2>18.2 Adaptive resolution</h2>
+  <p>When the frame rate drops under load, lower the device pixel ratio instead of
+    stuttering. A slightly softer image that responds instantly beats a sharp one
+    that lags.</p>
+
+  <h2>18.3 Bypassing React for high-frequency updates</h2>
+  <p>Measurement tags and the orientation gizmo write to the DOM directly.
+    Sixty state updates a second would re-render the entire interface sixty times
+    a second.</p>
+
+  <h2>18.4 The <code>backdrop-filter</code> discovery</h2>
+  <div class="box warn">
+    <span class="tag">A real 27× regression, found by measuring</span>
+    <p>The command palette originally had a full-screen scrim with
+      <code>backdrop-filter: blur(3px)</code>. Frames took <b>331 ms</b> — three
+      per second. Blurring a full-viewport area that contains a live WebGL canvas
+      forces the compositor to read back and re-blur the entire drawing buffer
+      every frame.</p>
+    <p>Removing it, and pausing the render loop behind modal overlays, took frame
+      time to <b>12 ms</b>. The lesson is not "never use backdrop-filter" — small
+      chips still use it here. It is that expensive CSS effects over live-updating
+      content are a different cost class, and that you find this by measuring, not
+      by reading.</p>
+  </div>
+
+  <h2>18.5 Throttling with <code>requestAnimationFrame</code></h2>
+<pre class="file"><code><span class="k">this</span>.canvas.addEventListener(<span class="s">'pointermove'</span>, (event) =&gt; {
+  <span class="k">if</span> (<span class="k">this</span>.hoverQueued) <span class="k">return</span>;
+  <span class="k">this</span>.hoverQueued = <span class="k">true</span>;
+  requestAnimationFrame(() =&gt; {
+    <span class="k">this</span>.hoverQueued = <span class="k">false</span>;
+    …
+  });
+});</code></pre>
+  <p>Pointer events can fire faster than the display refreshes. Raycasting on
+    every one is wasted work. This runs at most one per frame — the cheapest
+    correct throttle there is, and it is self-synchronising with the display.</p>
+
+  <h2>18.6 Budgets</h2>
+<pre class="file"><code><span class="k">const</span> EDGE_BUDGET = <span class="n">350_000</span>;
+<span class="k">const</span> HOVER_LIMIT = <span class="n">6000</span>;</code></pre>
+  <p>Edge outlining stops after 350,000 triangles; hover picking switches off
+    above 6,000 parts. A feature that makes a large model unusable is worse than
+    a feature that politely stops. Note that the truncation is <i>reported</i> to
+    the user rather than hidden.</p>
+
+  <h2>18.7 Code splitting</h2>
+<pre class="file"><code>manualChunks: {
+  three: [<span class="s">'three'</span>],
+  react: [<span class="s">'react'</span>, <span class="s">'react-dom'</span>],
+}</code></pre>
+  <p>Vendor libraries go into separate bundles with their own content hashes.
+    When your application code changes, visitors re-download only that chunk —
+    React and three.js stay in their browser cache across deploys.</p>
+
+  <h2>18.8 Lazy WebAssembly</h2>
+  <p>The 5–12 MB CAD and BIM kernels are fetched on first use. Someone who only
+    opens STL files never downloads them at all.</p>
+
+  <table>
+    <tr><th>Bundle</th><th>Raw</th><th>Gzipped</th></tr>
+    <tr><td>CSS</td><td>24.9 kB</td><td>6.0 kB</td></tr>
+    <tr><td>React chunk</td><td>140.9 kB</td><td>45.3 kB</td></tr>
+    <tr><td>three.js chunk</td><td>564.0 kB</td><td>144.3 kB</td></tr>
+    <tr><td>Application</td><td>592.7 kB</td><td>180.6 kB</td></tr>
+  </table>
+  <p>Gzipped size is what actually travels. Roughly 376 kB total, of which the
+    3D engine and its loaders are the overwhelming majority — which is exactly
+    what you would expect from a 3D application, and a useful reminder to check
+    that your bundle's shape matches your app's purpose.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 19</p>
+  <h1>TypeScript in this project</h1>
+  <p class="lede">TypeScript produces no runtime code. It is a checker that runs
+    before your code ships, and its value is proportional to how honestly you
+    describe your data.</p>
+
+  <h2>19.1 Union types as a state machine</h2>
+<pre class="file"><code><span class="k">export type</span> <span class="t">Status</span> = <span class="s">'idle'</span> | <span class="s">'loading'</span> | <span class="s">'ready'</span>;
+<span class="k">export type</span> <span class="t">MeasureTool</span> = <span class="s">'off'</span> | <span class="s">'distance'</span> | <span class="s">'diameter'</span>;
+<span class="k">export type</span> <span class="t">RenderMode</span> = <span class="s">'shaded'</span> | <span class="s">'wireframe'</span> | <span class="s">'edges'</span>;</code></pre>
+  <p>These are <b>string literal unions</b> and they are the most useful feature
+    in everyday TypeScript. The compiler knows the complete set of values, so a
+    typo is an error, autocomplete works, and a <code>switch</code> that misses a
+    case can be caught.</p>
+  <p>Compare with <code>status: string</code>, which permits
+    <code>'redy'</code> and gives you nothing.</p>
+
+  <h2>19.2 Deriving types from other types</h2>
+<pre class="file"><code><span class="k">const</span> POINTS_NEEDED: <span class="t">Record</span>&lt;<span class="t">Exclude</span>&lt;<span class="t">MeasureTool</span>, <span class="s">'off'</span>&gt;, <span class="t">number</span>&gt; = {
+  distance: <span class="n">2</span>,
+  diameter: <span class="n">3</span>,
+};</code></pre>
+  <p><code>Exclude&lt;MeasureTool, 'off'&gt;</code> is
+    <code>'distance' | 'diameter'</code>. <code>Record&lt;K, V&gt;</code> builds
+    an object type with those keys. Together they mean: <b>if you add a third
+    tool, this object stops compiling until you handle it.</b> The type system
+    becomes a to-do list that cannot be ignored.</p>
+  <p>This pattern — deriving a lookup table's keys from a union — is one of the
+    highest-value things you can learn in TypeScript. It converts "I hope I
+    remembered to update everywhere" into a compiler error.</p>
+
+  <h2>19.3 Generic functions</h2>
+<pre class="file"><code>setDisplay&lt;K <span class="k">extends keyof</span> <span class="t">Display</span>&gt;(key: K, value: <span class="t">Display</span>[K]): <span class="k">void</span>;</code></pre>
+  <p>This says: the second argument's type depends on the first.
+    <code>setDisplay('grid', true)</code> compiles;
+    <code>setDisplay('grid', 'yes')</code> does not, because
+    <code>Display['grid']</code> is <code>boolean</code>. One signature covering
+    every property, with full checking on each.</p>
+
+  <h2>19.4 The strict flags that matter</h2>
+<pre class="file"><code>{
+  <span class="s">"strict"</span>: <span class="k">true</span>,
+  <span class="s">"noUnusedLocals"</span>: <span class="k">true</span>,
+  <span class="s">"noUnusedParameters"</span>: <span class="k">true</span>,
+  <span class="s">"noFallthroughCasesInSwitch"</span>: <span class="k">true</span>
+}</code></pre>
+  <table class="wrap">
+    <tr><td><code>strict</code></td><td>Turns on every safety check, most importantly <code>strictNullChecks</code> — you cannot use a possibly-null value without proving it is not.</td></tr>
+    <tr><td><code>noUnusedLocals</code></td><td>Dead variables become errors. This is how the leftover fields from removed features were caught during the v1 cleanup.</td></tr>
+    <tr><td><code>noFallthroughCasesInSwitch</code></td><td>Catches a missing <code>break</code>.</td></tr>
+  </table>
+  <p>Start every project with <code>strict: true</code>. Adding it later to a
+    large codebase means hundreds of errors at once; starting with it means
+    handling each as you write.</p>
+
+  <h2>19.5 Escape hatches, and when they are fair</h2>
+<pre class="file"><code><span class="k">const</span> mesh = node <span class="k">as</span> THREE.<span class="t">Mesh</span>;
+<span class="k">if</span> (!mesh.isMesh) <span class="k">return</span>;</code></pre>
+  <p>three.js's <code>traverse</code> yields <code>Object3D</code>, and there is
+    no way for the compiler to know which are meshes. The cast is immediately
+    followed by a runtime check, which is the honest version of this pattern:
+    assert the type, then verify it. A cast with no check afterwards is a lie
+    that will eventually be found out.</p>
+  <p>Note also what is <i>not</i> here: <code>any</code> appears nowhere in the
+    source. Where a type is genuinely unknown, the code writes the shape it
+    expects — see the hand-written interfaces at the top of
+    <code>ifc.ts</code> and <code>dotbim.ts</code> describing third-party data.</p>
+</section>
+
+<section class="chapter">
+  <p class="eyebrow">Chapter 20</p>
+  <h1>Accessibility</h1>
+  <p class="lede">Not a checklist bolted on at the end. Six habits, each cheap,
+    that were applied while the components were written.</p>
+
+  <h2>20.1 Semantic elements</h2>
+  <p><code>&lt;header&gt;</code>, <code>&lt;main&gt;</code>,
+    <code>&lt;nav&gt;</code>, <code>&lt;aside&gt;</code>,
+    <code>&lt;footer&gt;</code> are used for what they mean. Screen readers offer
+    landmark navigation based on them, which is how a non-sighted user jumps
+    around a page. A <code>div</code> soup offers nothing to jump to.</p>
+  <p>Every interactive element is a real <code>&lt;button&gt;</code>. A clickable
+    <code>div</code> is not focusable, is not announced as a control, and does
+    not respond to <span class="kbd">Enter</span> or <span class="kbd">Space</span>
+    without you reimplementing all of it.</p>
+
+  <h2>20.2 Labelling</h2>
+<pre class="file"><code>&lt;button className=<span class="s">"tool"</span> aria-pressed={active} aria-label={label}&gt;
+  {icon}
+  &lt;span className=<span class="s">"tip"</span>&gt;{label}&lt;kbd className=<span class="s">"kbd"</span>&gt;{keys}&lt;/kbd&gt;&lt;/span&gt;
+&lt;/button&gt;</code></pre>
+  <p>An icon-only button contains no text, so it needs
+    <code>aria-label</code>. <code>aria-pressed</code> communicates toggle
+    state — and, as covered in 12.4, also drives the CSS, so the two cannot drift
+    apart.</p>
+  <p>Where text must exist for screen readers but not on screen, the
+    <code>.sr-only</code> class hides it visually while leaving it in the
+    accessibility tree. Never use <code>display: none</code> for this — it
+    removes the text from both.</p>
+
+  <h2>20.3 Focus visibility</h2>
+<pre class="file"><code>:focus-visible {
+  outline: <span class="n">2</span>px solid var(--accent);
+  outline-offset: <span class="n">2</span>px;
+}</code></pre>
+  <p>Keyboard users need to see where they are. <code>:focus-visible</code>
+    rather than <code>:focus</code> shows the ring for keyboard navigation but
+    not after a mouse click, which is why designers used to remove focus rings
+    entirely. Now you can have both.</p>
+
+  <h2>20.4 Live regions</h2>
+<pre class="file"><code>&lt;div className=<span class="s">"toasts"</span> role=<span class="s">"status"</span> aria-live=<span class="s">"polite"</span>&gt;</code></pre>
+  <p>A toast appears without any user action, so a screen reader would otherwise
+    never mention it. <code>aria-live="polite"</code> announces it at the next
+    natural pause; <code>assertive</code> interrupts and should be reserved for
+    genuine emergencies.</p>
+
+  <h2>20.5 Colour contrast</h2>
+  <p>Every foreground/background pair in <code>tokens.css</code> was checked
+    against WCAG AA — 4.5:1 for body text — in both themes. This constrained the
+    design in a useful way: the dark theme's bright amber cannot carry white
+    text, so the light theme uses a darker bronze that can. That inversion is
+    the entire reason <code>--accent-ink</code> exists as a token.</p>
+
+  <h2>20.6 Respecting preferences</h2>
+  <p>Reduced motion is honoured globally (12.5). The colour scheme follows the
+    operating system until the visitor chooses otherwise. Pinch-zoom is not
+    blocked. These cost four lines, one media query and one omitted attribute
+    respectively — and each of them is regularly got wrong on sites with far
+    bigger budgets than this one.</p>
+</section>

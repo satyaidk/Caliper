@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://caliper.app/sitemap.xml

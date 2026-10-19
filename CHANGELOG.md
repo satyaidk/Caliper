@@ -2,6 +2,43 @@
 
 All notable changes to Caliper. Versions follow [semantic versioning](https://semver.org).
 
+## [Unreleased]
+
+Several models on one plate, zip archives, and recently opened models.
+
+### Added
+
+- **Zip archives open.** A `.zip` is unpacked in the browser, reading only the
+  entries a loader can use. One model inside opens directly; several open a
+  chooser with a filter, Select all, folder, format and size for each.
+  Textures and materials in the archive come along. Empty, damaged and
+  password-protected archives say so instead of failing silently.
+- **Several models on one plate**, up to 24, drawn at their true sizes relative
+  to each other. Choosing or dropping several files opens them side by side;
+  dropping onto an open plate, or File → Add models (Ctrl I), adds to it.
+- **A colour per model.** Each new model takes a palette colour no other model
+  is wearing. The Plate section's colour dots and the Filament swatches recolour
+  models one at a time.
+- **Moving and arranging.** A move tool (M) drags models across the plate,
+  arrow keys nudge the active one a grid square, the sidebar takes exact X/Z
+  positions, and Arrange (T) packs the plate. [ and ] step through models;
+  Delete removes the active one.
+- **Recently opened models**, with thumbnails, on the Home tab, kept in this
+  browser's IndexedDB and reopened without choosing the file again. Restore
+  the last plate brings every model back with its position and colour.
+  Clearing site data empties it, and a switch turns it off and forgets
+  everything kept.
+
+### Changed
+
+- **Open replaces, Add joins.** Ctrl O and the Open button start a fresh plate;
+  Ctrl I, the Add button and drops onto an open plate add to it.
+- **Plate-wide readouts.** Framing, the section cut, the Preview layer slider,
+  the auto-sized plate, the printer fit check and shadows cover every visible
+  model. The Size, Objects and Printability sections describe the active one.
+- `Engine.setPlate(bed)` no longer takes a unit; each model's unit is set with
+  `setModelUnit`. `Engine.setModel` still replaces the plate with one model.
+
 ## [2.0.0] — 2026-10-15
 
 A redesign around Bambu Studio's interface, Bambu Studio's viewer tools, and a

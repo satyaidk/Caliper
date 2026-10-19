@@ -16,7 +16,7 @@ export function useHotkeys(actions: Actions) {
 
       const store = useViewer.getState();
       // A dialog owns the keyboard while it is open; it closes itself on Esc.
-      if (store.shortcutsOpen) return;
+      if (store.shortcutsOpen || store.pick) return;
 
       const key = event.key.toLowerCase();
       const mod = event.metaKey || event.ctrlKey;
@@ -24,7 +24,9 @@ export function useHotkeys(actions: Actions) {
       if ((key === ' ' || key === 'enter') && target?.tagName === 'BUTTON') return;
       if (event.altKey) return;
 
-      const binding = BINDINGS.find((b) => b.key === key && Boolean(b.mod) === mod);
+      const binding = BINDINGS.find(
+        (b) => b.key === key && Boolean(b.mod) === mod && (!b.when || b.when(store)),
+      );
       if (!binding) return;
       event.preventDefault();
       binding.run(store, actions);

@@ -187,7 +187,7 @@ async function startHero() {
   mesh.name = 'Spur gear';
   engine.setFilament('#00ae42', false);
   engine.setModel(mesh, false);
-  engine.setPlate(null, 1);
+  engine.setPlate(null);
   engine.setRenderMode('shaded');
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

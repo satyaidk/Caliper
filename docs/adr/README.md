@@ -12,6 +12,7 @@ record.
 | [0003](0003-generated-service-worker.md) | Generate the service worker per build instead of using Workbox | Accepted |
 | [0004](0004-stencil-section-caps.md) | Fill section cuts with a stencil-buffer cap | Accepted |
 | [0005](0005-crease-normals-for-stl.md) | Shade STL files with crease-angle normals | Accepted |
+| [0006](0006-multi-model-plate.md) | Put several models on one plate, with one of them active | Accepted |
 
 To add one, copy the shape of an existing record, number it next, and add a row
 here.

@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
-import { useViewer, useMm } from '@/store/useViewer';
+import { useViewer } from '@/store/useViewer';
 import { dim } from '@/lib/format';
 import { EXPLODE_MAX } from '@/viewer/Explode';
 import { fractionAtLayer, layerAtFraction, layerCount } from '@/lib/printers';
 import type { Axis, MeasureTool, RenderMode } from '@/types';
 import {
+  IconAdd,
   IconAngle,
+  IconArrange,
   IconAutoOrient,
   IconClose,
   IconDiameter,
@@ -15,6 +17,7 @@ import {
   IconFit,
   IconLabels,
   IconLayFace,
+  IconMove,
   IconOpen,
   IconOrthographic,
   IconOverhang,
@@ -42,8 +45,10 @@ const MEASURES: { tool: MeasureTool; label: string; keys: string; icon: ReactNod
  * you do *to* the part. Orientation first, then measuring, then the two ways of
  * looking inside it.
  */
-export function CanvasToolbar({ onOpen }: { onOpen: () => void }) {
+export function CanvasToolbar({ onOpen, onAdd }: { onOpen: () => void; onAdd: () => void }) {
   const model = useViewer((s) => s.model);
+  const several = useViewer((s) => s.models.length > 1);
+  const arrange = useViewer((s) => s.arrange);
   const tool = useViewer((s) => s.measureTool);
   const setTool = useViewer((s) => s.setMeasureTool);
   const autoOrient = useViewer((s) => s.autoOrient);
@@ -55,8 +60,24 @@ export function CanvasToolbar({ onOpen }: { onOpen: () => void }) {
 
   return (
     <div className="ctoolbar" role="toolbar" aria-label="Part tools">
-      <ToolButton label="Open a model" keys="Ctrl O" onClick={onOpen}>
+      <ToolButton label="Open models" keys="Ctrl O" onClick={onOpen}>
         <IconOpen />
+      </ToolButton>
+      <ToolButton label="Add models to the plate" keys="Ctrl I" disabled={none} onClick={onAdd}>
+        <IconAdd />
+      </ToolButton>
+      <span className="ctool-sep" />
+      <ToolButton
+        label="Move models on the plate"
+        keys="M"
+        disabled={none}
+        active={tool === 'move'}
+        onClick={() => setTool('move')}
+      >
+        <IconMove />
+      </ToolButton>
+      <ToolButton label="Arrange the plate" keys="T" disabled={!several} onClick={arrange}>
+        <IconArrange />
       </ToolButton>
       <span className="ctool-sep" />
       <ToolButton label="Auto orient: largest flat face down" keys="R" disabled={none} onClick={autoOrient}>
@@ -236,7 +257,7 @@ function MeasurePanel() {
   const pending = useViewer((s) => s.pendingPoints);
   const setTool = useViewer((s) => s.setMeasureTool);
   const undo = useViewer((s) => s.undoMeasure);
-  if (tool === 'off' || tool === 'lay') return null;
+  if (tool === 'off' || tool === 'lay' || tool === 'move') return null;
   const steps = STEPS[tool];
 
   return (
@@ -280,16 +301,39 @@ function LayPanel() {
   );
 }
 
+function MovePanel() {
+  const tool = useViewer((s) => s.measureTool);
+  const setTool = useViewer((s) => s.setMeasureTool);
+  const several = useViewer((s) => s.models.length > 1);
+  const arrange = useViewer((s) => s.arrange);
+  if (tool !== 'move') return null;
+
+  return (
+    <Panel title="Move" onClose={() => setTool('off')}>
+      <p className="fpanel-note">
+        Drag any model across the plate. Drag empty space to turn the view as usual. Arrow keys nudge the active model
+        one grid square.
+      </p>
+      {several && (
+        <button type="button" className="btn" data-variant="ghost" onClick={arrange}>
+          <IconArrange size={14} />
+          Arrange them for me
+        </button>
+      )}
+    </Panel>
+  );
+}
+
 function SectionPanel() {
   const section = useViewer((s) => s.section);
   const setSection = useViewer((s) => s.setSection);
   const model = useViewer((s) => s.model);
   const unit = useViewer((s) => s.unit);
   const workspace = useViewer((s) => s.workspace);
-  const mm = useMm();
+  // The cut runs across everything on the plate.
+  const span = useViewer((s) => s.scene[section.axis]);
   // Preview's layer cut replaces the section; the panel would control nothing.
   if (!section.on || !model || workspace !== 'prepare') return null;
-  const span = model.dimensions[section.axis] * mm;
 
   return (
     <Panel title="Section view" onClose={() => setSection({ on: false })}>
@@ -362,6 +406,7 @@ export function ToolPanels() {
     <div className="fpanels">
       <MeasurePanel />
       <LayPanel />
+      <MovePanel />
       <SectionPanel />
       <AssemblyPanel />
     </div>
@@ -380,10 +425,10 @@ export function LayerSlider() {
   const setLayerAt = useViewer((s) => s.setLayerAt);
   const layerHeight = useViewer((s) => s.layerHeight);
   const model = useViewer((s) => s.model);
-  const mm = useMm();
+  // From the plate up through the tallest model, as a slicer slices a plate.
+  const height = useViewer((s) => s.scene.y);
   if (!model) return null;
 
-  const height = model.dimensions.y * mm;
   const total = layerCount(height, layerHeight);
   const layer = layerAtFraction(layerAt, height, layerHeight);
   const goTo = (next: number) =>
@@ -419,11 +464,17 @@ export function LayerSlider() {
 /** The Preview legend: what the colours on the model mean. */
 export function PreviewLegend() {
   const overhangDeg = useViewer((s) => s.overhangDeg);
+  const models = useViewer((s) => s.models);
   const filament = useViewer((s) => s.filament);
+  const colours = [...new Set(models.filter((m) => m.visible).map((m) => m.colour))];
   return (
     <div className="legend" aria-label="Legend">
       <div className="legend-row">
-        <i style={{ background: filament }} />
+        <span className="legend-swatches">
+          {(colours.length ? colours : [filament]).slice(0, 6).map((colour) => (
+            <i key={colour} style={{ background: colour }} />
+          ))}
+        </span>
         Printed surface
       </div>
       <div className="legend-row">

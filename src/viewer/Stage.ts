@@ -72,6 +72,9 @@ const DEFAULT_PLATE: PlateSpec = {
   fits: true,
 };
 
+/** Half-width of the key light's shadow frustum for a single centred model. */
+const SHADOW_REACH = 12;
+
 /** Grids denser than this stop being a ruler and become a texture. */
 const MAX_LINES = 600;
 
@@ -174,8 +177,8 @@ export class Stage {
     const shadowCam = this.key.shadow.camera;
     shadowCam.near = 0.5;
     shadowCam.far = 60;
-    shadowCam.left = shadowCam.bottom = -12;
-    shadowCam.right = shadowCam.top = 12;
+    shadowCam.left = shadowCam.bottom = -SHADOW_REACH;
+    shadowCam.right = shadowCam.top = SHADOW_REACH;
 
     this.fill = new THREE.DirectionalLight(0xe6ebf2, 0.3);
     this.fill.position.set(-7, 4, -5);
@@ -289,6 +292,38 @@ export class Stage {
 
   get shadowsEnabled() {
     return this.shadowsOn;
+  }
+
+  /**
+   * Widens the key light's shadow frustum to cover models out to `reach` world
+   * units from the centre. One centred model never needs more than the default;
+   * a plate of several spread-out models does, or shadows stop at an invisible
+   * square. The light backs off in proportion so the frustum still contains it.
+   */
+  setShadowReach(reach: number) {
+    const r = Math.max(SHADOW_REACH, reach);
+    const scale = r / SHADOW_REACH;
+    const camera = this.key.shadow.camera;
+    camera.left = camera.bottom = -r;
+    camera.right = camera.top = r;
+    camera.far = 60 * scale;
+    camera.updateProjectionMatrix();
+    this.key.position.set(6, 11, 7).multiplyScalar(scale);
+  }
+
+  /**
+   * Runs `draw` with the plate, grid and shadow catcher hidden — for
+   * thumbnails, which show the part alone. The lights stay on.
+   */
+  withoutPlate<T>(draw: () => T): T {
+    const parts = [this.plate, this.plateEdge, this.grid, this.gridMajor, this.volume, this.ground];
+    const before = parts.map((part) => part.visible);
+    parts.forEach((part) => (part.visible = false));
+    try {
+      return draw();
+    } finally {
+      parts.forEach((part, i) => (part.visible = before[i]));
+    }
   }
 
   /** The plate's extent, for framing the "default" view on a printer bed. */

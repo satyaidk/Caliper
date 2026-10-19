@@ -83,3 +83,17 @@ export function grams(g: number): string {
 export function degrees(value: number): string {
   return `${value.toFixed(1)}°`;
 }
+
+/** How long ago a moment was, in the words a person would use. */
+export function ago(then: number, now = Date.now()): string {
+  const seconds = Math.max(0, Math.round((now - then) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  return new Date(then).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}

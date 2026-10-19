@@ -132,9 +132,10 @@ export interface ClipState {
  * What the next click does. `off` hands the pointer back to selection, which is
  * the only mode where orbiting a model does not risk dropping a point. `lay`
  * is Bambu Studio's "lay on face": the clicked face goes down onto the plate.
+ * `move` drags whole models across the plate to arrange them.
  */
-export type MeasureTool = 'off' | 'distance' | 'diameter' | 'angle' | 'lay';
-export type MeasuringTool = Exclude<MeasureTool, 'off' | 'lay'>;
+export type MeasureTool = 'off' | 'distance' | 'diameter' | 'angle' | 'lay' | 'move';
+export type MeasuringTool = Exclude<MeasureTool, 'off' | 'lay' | 'move'>;
 
 /** Where a picked point landed. Drives the marker glyph and the snap readout. */
 export type SnapKind = 'vertex' | 'midpoint' | 'centre' | 'surface';

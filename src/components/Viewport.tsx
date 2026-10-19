@@ -177,9 +177,10 @@ function EmptyPlate({ onOpen }: { onOpen: () => void }) {
   const openSample = useViewer((s) => s.openSample);
   return (
     <div className="empty-plate">
-      <p className="empty-title">Drop a model on the plate</p>
+      <p className="empty-title">Drop models on the plate</p>
       <p className="empty-sub">
-        {NAMED.join(', ')} and {FORMATS.length - NAMED.length} more. The file stays on this device.
+        {NAMED.join(', ')} and {FORMATS.length - NAMED.length} more, one at a time, several at once, or in a .zip.
+        The files stay on this device.
       </p>
       <div className="row-actions">
         <button type="button" className="btn" data-variant="primary" onClick={onOpen}>
@@ -193,7 +194,7 @@ function EmptyPlate({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-export function Viewport({ dragging, onOpen }: { dragging: boolean; onOpen: () => void }) {
+export function Viewport({ dragging, onOpen, onAdd }: { dragging: boolean; onOpen: () => void; onAdd: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const attach = useViewer((s) => s.attach);
@@ -201,6 +202,7 @@ export function Viewport({ dragging, onOpen }: { dragging: boolean; onOpen: () =
   const status = useViewer((s) => s.status);
   const workspace = useViewer((s) => s.workspace);
   const tool = useViewer((s) => s.measureTool);
+  const hasModels = useViewer((s) => s.models.length > 0);
   const compact = useIsCompact();
 
   useEffect(() => {
@@ -217,6 +219,7 @@ export function Viewport({ dragging, onOpen }: { dragging: boolean; onOpen: () =
       onSelect: store.setSelection,
       onParts: store.setParts,
       onTransform: () => useViewer.getState().onTransform(),
+      onActiveModel: (id) => useViewer.getState().onActiveModel(id),
       onContextChange: (lost) => {
         store.setContextLost(lost);
         store.toast(
@@ -249,7 +252,7 @@ export function Viewport({ dragging, onOpen }: { dragging: boolean; onOpen: () =
       {!empty && <MeasureLabels />}
       {!empty && <PartLabels />}
 
-      {!preview && <CanvasToolbar onOpen={onOpen} />}
+      {!preview && <CanvasToolbar onOpen={onOpen} onAdd={onAdd} />}
       {preview && <PreviewLegend />}
       {!empty && <ToolPanels />}
       {!empty && (
@@ -269,8 +272,8 @@ export function Viewport({ dragging, onOpen }: { dragging: boolean; onOpen: () =
       {dragging && (
         <div className="veil">
           <div className="veil-card" data-tone="drop">
-            <strong>Drop to open</strong>
-            <span>Folders work too: textures and materials come along.</span>
+            <strong>{hasModels ? 'Drop to add to the plate' : 'Drop to open'}</strong>
+            <span>Several files, folders and .zip archives all work: textures and materials come along.</span>
           </div>
         </div>
       )}

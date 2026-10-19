@@ -27,6 +27,7 @@ const TABS: { id: Workspace; label: string; icon: JSX.Element }[] = [
 
 interface Props {
   onOpen: () => void;
+  onAdd: () => void;
   onScreenshot: () => void;
 }
 
@@ -34,10 +35,11 @@ interface Props {
  * The File menu. Everything in it is also a key or a button elsewhere; the menu
  * is where a person looks first, so it lists them all with their keys.
  */
-function FileMenu({ onOpen, onScreenshot }: Props) {
+function FileMenu({ onOpen, onAdd, onScreenshot }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const model = useViewer((s) => s.model);
+  const several = useViewer((s) => s.models.length > 1);
   const openSample = useViewer((s) => s.openSample);
   const close = useViewer((s) => s.close);
   const setShortcutsOpen = useViewer((s) => s.setShortcutsOpen);
@@ -79,8 +81,12 @@ function FileMenu({ onOpen, onScreenshot }: Props) {
       {open && (
         <div className="menu-list" role="menu">
           <button type="button" role="menuitem" className="menu-item" onClick={run(onOpen)}>
-            <span>Open a model…</span>
+            <span>Open models…</span>
             <Kbd>Ctrl O</Kbd>
+          </button>
+          <button type="button" role="menuitem" className="menu-item" disabled={!model} onClick={run(onAdd)}>
+            <span>Add models to the plate…</span>
+            <Kbd>Ctrl I</Kbd>
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={run(() => void openSample())}>
             <span>Open the sample gear</span>
@@ -96,7 +102,7 @@ function FileMenu({ onOpen, onScreenshot }: Props) {
             <Kbd>Ctrl S</Kbd>
           </button>
           <button type="button" role="menuitem" className="menu-item" disabled={!model} onClick={run(close)}>
-            <span>Close the model</span>
+            <span>{several ? 'Close the plate' : 'Close the model'}</span>
           </button>
           <div className="menu-sep" role="separator" />
           <button type="button" role="menuitem" className="menu-item" onClick={run(() => setShortcutsOpen(true))}>
@@ -122,8 +128,9 @@ function FileMenu({ onOpen, onScreenshot }: Props) {
  * the workspace tabs beside it. In an installed app with window controls
  * overlay, this strip *is* the title bar, so its empty space drags the window.
  */
-export function TopBar({ onOpen, onScreenshot }: Props) {
+export function TopBar({ onOpen, onAdd, onScreenshot }: Props) {
   const model = useViewer((s) => s.model);
+  const others = useViewer((s) => s.models.length - 1);
   const workspace = useViewer((s) => s.workspace);
   const setWorkspace = useViewer((s) => s.setWorkspace);
   const theme = useViewer((s) => s.theme);
@@ -142,7 +149,7 @@ export function TopBar({ onOpen, onScreenshot }: Props) {
         {!compact && <span className="topbar-word">Caliper</span>}
       </a>
 
-      <FileMenu onOpen={onOpen} onScreenshot={onScreenshot} />
+      <FileMenu onOpen={onOpen} onAdd={onAdd} onScreenshot={onScreenshot} />
 
       <nav className="tabs" role="tablist" aria-label="Workspace">
         {TABS.map((tab) => (
@@ -170,6 +177,11 @@ export function TopBar({ onOpen, onScreenshot }: Props) {
             <span className="topbar-name" title={model.name}>
               {shortName(model.name, compact ? 16 : 40)}
             </span>
+            {others > 0 && (
+              <span className="topbar-more num" title={`${others + 1} models on the plate`}>
+                +{others}
+              </span>
+            )}
             {!compact && <span className="topbar-meta num">{bytes(model.bytes)}</span>}
           </>
         )}

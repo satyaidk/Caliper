@@ -110,8 +110,8 @@ export function isSupported(filename: string): boolean {
   return BY_EXT.has(extOf(filename));
 }
 
-/** `accept` attribute for the file input. */
+/** `accept` attribute for the file input. Zip archives are unpacked on open. */
 export const ACCEPT = FORMATS.map((f) => `.${f.ext}`)
-  .concat(['.glb', '.mtl', '.bin'])
+  .concat(['.glb', '.mtl', '.bin', '.zip'])
   .filter((v, i, a) => a.indexOf(v) === i)
   .join(',');

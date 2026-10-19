@@ -32,6 +32,9 @@ Caliper is an independent project and is not affiliated with or endorsed by Bamb
 | Area | What it does |
 | --- | --- |
 | **Formats** | 22 extensions through three pipelines: mesh (`stl` `obj` `ply` `off` `gltf` `glb` `fbx` `dae` `3ds` `3mf` `amf` `wrl`), CAD B-rep tessellated by WebAssembly kernels (`step` `stp` `iges` `igs` `brep` `brp` `fcstd` `3dm`) and BIM (`ifc` `bim`). |
+| **Zip archives** | A `.zip` is unpacked in the browser. One model inside opens directly; several open a chooser to pick one, some or all of them. Textures and materials in the archive come along. |
+| **Plate** | Up to 24 models side by side at their true relative sizes, each with its own colour. Drag them with the move tool, nudge them with the arrow keys, type an exact X/Z position, or arrange the whole plate in one key. |
+| **Recent models** | Recently opened models, with thumbnails, reopen from this device's storage without choosing the file again, and the last plate comes back where it was left. Clearing site data empties it; a switch turns it off. |
 | **Measure** | Distance with an X/Y/Z split, diameter from three points on an arc, and angle from arm, corner, arm. Clicks snap to the nearest corner, edge midpoint or face centre within 14 screen pixels. |
 | **Orient** | Lay on face (click a face and it goes down onto the plate) and auto orient (stand the part on its largest flat face on the convex hull). The size readout follows the new orientation. |
 | **Look inside** | Section view along X, Y or Z with a hatched, stencil-filled cap so a cut reads as solid; assembly view that pulls parts apart along lines from the centre, ratio 1 to 3. |
@@ -111,7 +114,7 @@ The service worker is only generated and registered in production builds, so `np
 
 ## Usage
 
-Open the app, then drop a file or folder anywhere in the window, use **File → Open a model**, or pass one by URL:
+Open the app, then drop files, a folder or a `.zip` anywhere in the window, use **File → Open models**, or pass one by URL:
 
 ```
 https://your-domain/app/?model=https://example.com/bracket.step
@@ -119,6 +122,12 @@ https://your-domain/app/?model=/models/bracket.step&name=Bracket.step&tab=previe
 ```
 
 Only `http` and `https` URLs are followed, and the remote host must send permissive CORS headers. Links to the old root URL (`/?model=…`) are forwarded to `/app/`.
+
+**Several models.** Choose several files at once, or drop them together, and they open side by side on one plate. With models already open, dropping more adds them to the plate; **File → Add models to the plate** (<kbd>Ctrl</kbd> <kbd>I</kbd>) does the same from a dialog, while **Open** (<kbd>Ctrl</kbd> <kbd>O</kbd>) starts a fresh plate. A `.zip` holding several models, or a drop of more than eight, asks which to open. The **Plate** section in the sidebar lists every model: click one to make it active (the Filament, Size, Objects and Printability sections then describe it), click its colour dot to recolour it, and hide or remove it. Clicking a model on the canvas makes it active too.
+
+**Arranging.** Pick up the move tool (<kbd>M</kbd>) and drag any model across the plate; dragging empty space still turns the view. Arrow keys nudge the active model one grid square, the sidebar takes an exact X/Z position, and **Arrange** (<kbd>T</kbd>) packs everything into a tidy block.
+
+**Recent models.** Models you open are kept in this browser's IndexedDB with a thumbnail, and listed on the Home tab. Click one to reopen it, or use **Restore the last plate** to bring back every model where you left it. Nothing is uploaded. Clearing the browser's site data empties the list, and the switch under it turns remembering off and forgets everything already kept.
 
 **Units.** STL and most mesh formats carry no unit, so their numbers are read as millimetres, as a slicer would. glTF is metres by specification and BIM geometry arrives in metres, so those default to metres. The **Size** section's *The file's numbers are in* menu changes it for the file in front of you, and a part under 1 mm across prompts the switch.
 
@@ -140,6 +149,15 @@ The keys follow Bambu Studio where it has an equivalent. Press <kbd>?</kbd> in t
 | | | <kbd>Backspace</kbd> | Undo last point | <kbd>Ctrl</kbd> <kbd>O</kbd> / <kbd>S</kbd> | Open, save PNG |
 | | | <kbd>Esc</kbd> | Put the tool away | <kbd>Ctrl</kbd> <kbd>B</kbd> / <kbd>J</kbd> | Sidebar, theme |
 
+| Plate | |
+| --- | --- |
+| <kbd>M</kbd> | Move models: drag them across the plate |
+| <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | Nudge the active model one grid square, while moving |
+| <kbd>T</kbd> | Arrange the plate |
+| <kbd>[</kbd> <kbd>]</kbd> | Previous, next model |
+| <kbd>Delete</kbd> | Remove the active model |
+| <kbd>Ctrl</kbd> <kbd>I</kbd> | Add models to the plate |
+
 ## Project structure
 
 ```
@@ -151,7 +169,7 @@ src/
   components/           React, no three.js: TopBar, Sidebar, Toolbars, Viewport, Home, ...
   store/useViewer.ts    Zustand store, the single source of truth
   viewer/               three.js, no React
-    Engine.ts           renderer, model, picking, tools
+    Engine.ts           renderer, the models on the plate, picking, tools
     CameraRig.ts        perspective and orthographic cameras
     Stage.ts            build plate, grid, build volume, lights
     Section.ts          clipping plane and stencil-filled cap
@@ -163,7 +181,13 @@ src/
     normals.ts          crease-angle normals for STL            (pure)
     triangles.ts        triangle streams over meshes or arrays  (pure)
     loaders/            one module per pipeline
+  components/ModelChooser.tsx  picks models out of a zip or a large drop
   lib/                  formats, units, printers, shortcuts, sample part, labels
+    archive.ts          zip reading, filtered before inflating     (pure + fflate)
+    intake.ts           models vs companions, when to ask          (pure)
+    arrange.ts          shelf packing and placement on the plate   (pure)
+    colours.ts          filament palette and per-model colours     (pure)
+    recent.ts           recently opened models in IndexedDB
   pwa/                  service worker template and registration
   styles/               tokens.css (palette and type), base.css, app.css
 test/                   unit tests, Node's built-in runner

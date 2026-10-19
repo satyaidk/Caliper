@@ -1,16 +1,24 @@
-import { useViewer, FILAMENTS, LAYER_HEIGHTS, useMm } from '@/store/useViewer';
-import { area, bytes, count, degrees, dim, grams, ms, volume } from '@/lib/format';
+import { useState } from 'react';
+import { useViewer, FILAMENTS, LAYER_HEIGHTS, useMm, type ModelEntry } from '@/store/useViewer';
+import { area, bytes, count, degrees, dim, grams, ms, shortName, volume } from '@/lib/format';
 import { PIPELINE_COPY } from '@/lib/formats';
-import { BEDS, bedById, fitOnBed, layerAtFraction, layerCount } from '@/lib/printers';
+import { BEDS, MM_PER, bedById, fitOnBed, layerAtFraction, layerCount } from '@/lib/printers';
+import { MAX_MODELS } from '@/lib/intake';
 import type { Measurement, SourceUnit, UnitSystem } from '@/types';
 import {
+  IconAdd,
   IconAngle,
+  IconArrange,
   IconCheckup,
   IconDiameter,
+  IconClose,
   IconDistance,
+  IconEye,
+  IconEyeOff,
   IconFile,
   IconObjects,
   IconPreview,
+  IconPlate,
   IconPrinter,
   IconSize,
   IconSpool,
@@ -37,13 +45,25 @@ function PrinterSection() {
   const bedId = useViewer((s) => s.bedId);
   const setBed = useViewer((s) => s.setBed);
   const model = useViewer((s) => s.model);
+  const several = useViewer((s) => s.models.length > 1);
   const plate = useViewer((s) => s.plate);
   const unit = useViewer((s) => s.unit);
   const mm = useMm();
   const bed = bedById(bedId);
 
   let verdict: JSX.Element | null = null;
-  if (model && bed.size) {
+  if (several && bed.size) {
+    // With several models the question is where they are, not only how big.
+    verdict = plate.fits ? (
+      <p className="verdict" data-tone="ok">
+        Everything on the plate fits.
+      </p>
+    ) : (
+      <p className="verdict" data-tone="bad">
+        Something sticks out of the build area. Arrange the plate, or move it in.
+      </p>
+    );
+  } else if (model && bed.size) {
     const d = model.dimensions;
     const report = fitOnBed([d.x * mm, d.y * mm, d.z * mm], bed.size);
     const over = (['width', 'depth', 'height'] as const).filter((k) => report.over[k] > 0);
@@ -91,14 +111,25 @@ function PrinterSection() {
 /* --------------------------------------------------------------- filament */
 
 function FilamentSection() {
-  const filament = useViewer((s) => s.filament);
-  const paintAuthored = useViewer((s) => s.paintAuthored);
+  const defaultColour = useViewer((s) => s.filament);
+  const defaultPaint = useViewer((s) => s.paintAuthored);
+  const model = useViewer((s) => s.model);
+  const several = useViewer((s) => s.models.length > 1);
   const setFilament = useViewer((s) => s.setFilament);
-  const authored = useViewer((s) => s.model?.authored ?? false);
+  // The swatches colour the active model; with nothing open they choose the
+  // colour the next model starts in.
+  const filament = model?.colour ?? defaultColour;
+  const paintAuthored = model?.paintAuthored ?? defaultPaint;
+  const authored = model?.authored ?? false;
   const known = FILAMENTS.find((f) => f.hex === filament);
 
   return (
     <SideSection icon={<IconSpool />} title="Filament" aside={<span className="side-count">{known?.name ?? 'Custom'}</span>}>
+      {several && model && (
+        <p className="note">
+          Colouring <b>{shortName(model.name, 30)}</b>. Click another model, or its row under Plate, to colour that one.
+        </p>
+      )}
       <div className="swatches" role="radiogroup" aria-label="Filament colour">
         {FILAMENTS.map((f) => (
           <button
@@ -205,6 +236,160 @@ function SizeSection() {
   );
 }
 
+/* ------------------------------------------------------------------ plate */
+
+/**
+ * A number typed in the display unit, committed on Enter or blur. Typing goes
+ * into a draft first, so a half-typed "-1" never throws the model across the
+ * plate on its way to "-12". With no draft the field shows the live position,
+ * so switching models or dragging one never leaves yesterday's number in it.
+ */
+function PositionInput({ axis, mm, onCommit }: { axis: 'x' | 'z'; mm: number; onCommit: (mm: number) => void }) {
+  const unit = useViewer((s) => s.unit);
+  const shown = Number((mm / MM_PER[unit]).toFixed(unit === 'mm' ? 1 : 3));
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = () => {
+    const text = draft;
+    setDraft(null);
+    if (text === null || text.trim() === '') return;
+    const value = Number(text);
+    if (Number.isFinite(value) && value !== shown) onCommit(value * MM_PER[unit]);
+  };
+
+  return (
+    <label className="pos-input" data-axis={axis}>
+      <b>{axis.toUpperCase()}</b>
+      <input
+        type="number"
+        inputMode="decimal"
+        step={unit === 'mm' ? 1 : 0.1}
+        value={draft ?? String(shown)}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
+          if (event.key === 'Escape') setDraft(null);
+        }}
+        aria-label={`Position along ${axis.toUpperCase()} in ${unit}`}
+      />
+      <span>{unit}</span>
+    </label>
+  );
+}
+
+function PlateRow({ entry, active }: { entry: ModelEntry; active: boolean }) {
+  const setActive = useViewer((s) => s.setActiveModel);
+  const setVisible = useViewer((s) => s.setModelVisible);
+  const setColour = useViewer((s) => s.setModelColour);
+  const remove = useViewer((s) => s.removeModel);
+  const frameModel = useViewer((s) => s.frameModel);
+
+  return (
+    <li className="plate-row" data-active={active} data-hidden={!entry.visible}>
+      <label className="plate-dot" style={{ background: entry.colour }} title={`Colour of ${entry.name}`}>
+        <input
+          type="color"
+          value={entry.colour}
+          onChange={(event) => setColour(entry.id, event.target.value)}
+          aria-label={`Colour of ${entry.name}`}
+        />
+      </label>
+      <button
+        type="button"
+        className="plate-name"
+        onClick={() => setActive(entry.id)}
+        onDoubleClick={() => {
+          setActive(entry.id);
+          frameModel(entry.id);
+        }}
+        aria-pressed={active}
+        title={`${entry.name} — double-click to zoom to it`}
+      >
+        <span>{entry.name}</span>
+        <small className="num">{count(entry.stats.triangles)} triangles</small>
+      </button>
+      <button
+        type="button"
+        className="obj-eye"
+        onClick={() => setVisible(entry.id, !entry.visible)}
+        aria-label={entry.visible ? `Hide ${entry.name}` : `Show ${entry.name}`}
+        title={entry.visible ? 'Hide' : 'Show'}
+      >
+        {entry.visible ? <IconEye size={15} /> : <IconEyeOff size={15} />}
+      </button>
+      <button
+        type="button"
+        className="obj-eye"
+        onClick={() => remove(entry.id)}
+        aria-label={`Remove ${entry.name} from the plate`}
+        title="Remove from the plate"
+      >
+        <IconClose size={12} />
+      </button>
+    </li>
+  );
+}
+
+/**
+ * Every model on the plate: pick the one to work on, give each its own colour,
+ * hide or remove it, and place it to the millimetre. Dragging on the canvas
+ * with the move tool (M) does the same placing by hand.
+ */
+function PlateSection({ onAdd }: { onAdd: () => void }) {
+  const models = useViewer((s) => s.models);
+  const activeId = useViewer((s) => s.activeId);
+  const arrange = useViewer((s) => s.arrange);
+  const setPosition = useViewer((s) => s.setModelPosition);
+  const tool = useViewer((s) => s.measureTool);
+  const setTool = useViewer((s) => s.setMeasureTool);
+  const active = models.find((m) => m.id === activeId);
+  if (!models.length) return null;
+
+  return (
+    <SideSection
+      icon={<IconPlate size={16} />}
+      title="Plate"
+      aside={<span className="side-count num">{models.length}</span>}
+    >
+      <ul className="plate-list" aria-label="Models on the plate">
+        {models.map((entry) => (
+          <PlateRow key={entry.id} entry={entry} active={entry.id === activeId} />
+        ))}
+      </ul>
+      {active && (
+        <div className="control-row">
+          <span className="control-label">Position</span>
+          <div className="pos-inputs">
+            <PositionInput axis="x" mm={active.position[0]} onCommit={(x) => setPosition(active.id, [x, active.position[1]])} />
+            <PositionInput axis="z" mm={active.position[1]} onCommit={(z) => setPosition(active.id, [active.position[0], z])} />
+          </div>
+        </div>
+      )}
+      <div className="row-actions">
+        <button type="button" className="btn" data-variant="ghost" onClick={onAdd} disabled={models.length >= MAX_MODELS}>
+          <IconAdd size={15} />
+          Add a model
+        </button>
+        {models.length > 1 && (
+          <button type="button" className="btn" data-variant="ghost" onClick={arrange} title="Arrange (T)">
+            <IconArrange size={15} />
+            Arrange
+          </button>
+        )}
+      </div>
+      {models.length > 1 && tool !== 'move' && (
+        <p className="note">
+          <button type="button" className="link-btn" onClick={() => setTool('move')}>
+            Pick up the move tool (M)
+          </button>{' '}
+          and drag models across the plate. Arrow keys nudge the active one.
+        </p>
+      )}
+    </SideSection>
+  );
+}
+
 /* ----------------------------------------------------------- measurements */
 
 const GLYPH = {
@@ -303,10 +488,10 @@ function LayerSection() {
   const layerAt = useViewer((s) => s.layerAt);
   const model = useViewer((s) => s.model);
   const unit = useViewer((s) => s.unit);
-  const mm = useMm();
+  // Layers run up through everything on the plate, as a slicer's do.
+  const heightMm = useViewer((s) => s.scene.y);
   if (!model) return null;
 
-  const heightMm = model.dimensions.y * mm;
   const total = layerCount(heightMm, layerHeight);
   const layer = layerAtFraction(layerAt, heightMm, layerHeight);
 
@@ -418,7 +603,7 @@ function CheckupSection() {
  * objects. Preview swaps the editing sections for the layer and printability
  * readouts, as Bambu's Preview tab swaps its process settings for the legend.
  */
-export function Sidebar() {
+export function Sidebar({ onAdd }: { onAdd: () => void }) {
   const workspace = useViewer((s) => s.workspace);
   const model = useViewer((s) => s.model);
   const parts = useViewer((s) => s.parts);
@@ -426,6 +611,7 @@ export function Sidebar() {
   return (
     <aside className="sidebar" aria-label="Model settings">
       <PrinterSection />
+      {workspace !== 'preview' && <PlateSection onAdd={onAdd} />}
       {workspace === 'preview' ? (
         <>
           <LayerSection />

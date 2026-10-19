@@ -346,6 +346,50 @@ export const IconTrash = ({ size = 15 }: Props) => (
   </svg>
 );
 
+/* --- the plate ------------------------------------------------------------ */
+
+/** Four arrows out from a centre: Bambu Studio's move gizmo, flattened. */
+export const IconMove = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M10 2.8v14.4M2.8 10h14.4" />
+    <path d="m7.8 5 2.2-2.2L12.2 5M7.8 15l2.2 2.2 2.2-2.2M5 7.8 2.8 10 5 12.2M15 7.8l2.2 2.2-2.2 2.2" />
+  </svg>
+);
+
+/** Three blocks packed onto a plate. */
+export const IconArrange = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <rect x="3" y="3.4" width="6" height="6" rx="1" />
+    <rect x="11" y="3.4" width="6" height="4" rx="1" />
+    <rect x="11" y="9.4" width="6" height="7.2" rx="1" />
+    <rect x="3" y="11.4" width="6" height="5.2" rx="1" />
+  </svg>
+);
+
+/** A plus: put one more model on the plate. */
+export const IconAdd = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M10 4v12M4 10h12" />
+  </svg>
+);
+
+/** A clock face, for the recently opened list. */
+export const IconRecent = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="10" r="6.8" />
+    <path d="M10 6.2V10l2.6 1.8" />
+  </svg>
+);
+
+/** An archive: a box with a zip running down it. */
+export const IconArchive = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <rect x="3.6" y="3" width="12.8" height="14" rx="1.4" />
+    <path d="M10 3v2M10 7v2M10 11v2" />
+    <rect x="8.6" y="13" width="2.8" height="2.4" rx=".6" />
+  </svg>
+);
+
 export const IconClose = ({ size = 14 }: Props) => (
   <svg {...base(size)}>
     <path d="m4.6 4.6 10.8 10.8M15.4 4.6 4.6 15.4" />

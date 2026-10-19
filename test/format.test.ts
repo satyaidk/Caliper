@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { area, bytes, compact, count, degrees, dim, grams, ms, shortName, volume } from '../src/lib/format.ts';
+import { ago, area, bytes, compact, count, degrees, dim, grams, ms, shortName, volume } from '../src/lib/format.ts';
 
 /* Everything in lib/ is a pure function, which makes it the cheapest code in
    the project to test and the code most likely to be quietly wrong — number
@@ -135,5 +135,25 @@ describe('grams and degrees', () => {
   test('degrees keep one decimal', () => {
     assert.equal(degrees(90), '90.0°');
     assert.equal(degrees(44.96), '45.0°');
+  });
+});
+
+describe('ago', () => {
+  const now = Date.UTC(2026, 9, 19, 12, 0, 0);
+  const minutes = (n: number) => now - n * 60_000;
+
+  test('says just now for the last few seconds', () => {
+    assert.equal(ago(now - 10_000, now), 'just now');
+  });
+
+  test('climbs through minutes, hours and days', () => {
+    assert.equal(ago(minutes(5), now), '5 min ago');
+    assert.equal(ago(minutes(180), now), '3 h ago');
+    assert.equal(ago(minutes(60 * 24), now), 'yesterday');
+    assert.equal(ago(minutes(60 * 24 * 4), now), '4 days ago');
+  });
+
+  test('never says a moment in the future is ago', () => {
+    assert.equal(ago(now + 60_000, now), 'just now');
   });
 });

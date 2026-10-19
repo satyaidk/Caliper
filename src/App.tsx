@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useViewer } from '@/store/useViewer';
+import { useViewer, type IntakeMode } from '@/store/useViewer';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { useIsCompact } from '@/hooks/useMediaQuery';
@@ -11,6 +11,7 @@ import { Home } from '@/components/Home';
 import { StatusBar } from '@/components/StatusBar';
 import { Toasts } from '@/components/Toasts';
 import { Shortcuts } from '@/components/Shortcuts';
+import { ModelChooser } from '@/components/ModelChooser';
 
 /**
  * A model can be handed to the page by URL — `?model=https://…/part.step` —
@@ -53,7 +54,14 @@ export default function App() {
   const theme = useViewer((s) => s.theme);
   const compact = useIsCompact();
 
-  const openPicker = useCallback(() => inputRef.current?.click(), []);
+  // The one file input serves both Open (replace the plate) and Add (join it).
+  const pickerMode = useRef<IntakeMode>('replace');
+  const pickFiles = useCallback((mode: IntakeMode) => {
+    pickerMode.current = mode;
+    inputRef.current?.click();
+  }, []);
+  const openPicker = useCallback(() => pickFiles('replace'), [pickFiles]);
+  const addPicker = useCallback(() => pickFiles('add'), [pickFiles]);
 
   const screenshot = useCallback(() => {
     if (!engine || !model) return;
@@ -64,8 +72,10 @@ export default function App() {
     toast({ tone: 'success', title: 'Saved the view as PNG' });
   }, [engine, model, toast]);
 
-  const dragging = useFileDrop((files) => void open(files));
-  useHotkeys(useMemo(() => ({ open: openPicker, screenshot }), [openPicker, screenshot]));
+  // Dropping onto a plate that already has models adds to it, as dragging
+  // files into Bambu Studio imports them onto the current plate.
+  const dragging = useFileDrop((files) => void open(files, useViewer.getState().models.length ? 'add' : 'replace'));
+  useHotkeys(useMemo(() => ({ open: openPicker, add: addPicker, screenshot }), [openPicker, addPicker, screenshot]));
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -109,7 +119,7 @@ export default function App() {
   // Opening the same file twice in a row should still reload it.
   const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
-    if (files.length) void open(files);
+    if (files.length) void open(files, pickerMode.current);
     event.target.value = '';
   };
 
@@ -117,16 +127,16 @@ export default function App() {
 
   return (
     <div className="app" data-sidebar={sidebarOpen && !compact ? 'open' : 'closed'} data-workspace={workspace}>
-      <TopBar onOpen={openPicker} onScreenshot={screenshot} />
+      <TopBar onOpen={openPicker} onAdd={addPicker} onScreenshot={screenshot} />
 
       {!compact && sidebarOpen && (
         <div className="area-side" hidden={home}>
-          <Sidebar />
+          <Sidebar onAdd={addPicker} />
         </div>
       )}
 
       <main className="area-work">
-        <Viewport dragging={dragging} onOpen={openPicker} />
+        <Viewport dragging={dragging} onOpen={openPicker} onAdd={addPicker} />
       </main>
 
       {home && (
@@ -142,13 +152,14 @@ export default function App() {
           <div className="sheet-scrim" onClick={() => toggleSheet(false)} />
           <div className="sheet" role="dialog" aria-label="Model settings">
             <button type="button" className="sheet-grab" onClick={() => toggleSheet(false)} aria-label="Close the settings" />
-            <Sidebar />
+            <Sidebar onAdd={addPicker} />
           </div>
         </>
       )}
 
       <Toasts />
       <Shortcuts />
+      <ModelChooser />
 
       <input
         ref={inputRef}

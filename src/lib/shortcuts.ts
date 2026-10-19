@@ -15,6 +15,7 @@ type Store = ReturnType<typeof useViewer.getState>;
 
 export interface Actions {
   open: () => void;
+  add: () => void;
   screenshot: () => void;
 }
 
@@ -25,8 +26,13 @@ export interface Binding {
   key: string;
   /** Needs Ctrl (or ⌘ on a Mac). */
   mod?: boolean;
-  group: 'Camera' | 'Tools' | 'Display' | 'App';
+  group: 'Camera' | 'Tools' | 'Plate' | 'Display' | 'App';
   label: string;
+  /**
+   * Only claim the key while this holds. Without it, the arrows would be taken
+   * from the page even when there is nothing to nudge.
+   */
+  when?: (store: Store) => boolean;
   run: (store: Store, actions: Actions) => void;
 }
 
@@ -82,6 +88,43 @@ export const BINDINGS: Binding[] = [
     },
   },
 
+  {
+    keys: 'M',
+    key: 'm',
+    group: 'Plate',
+    label: 'Move models: drag them across the plate',
+    run: (s) => s.setMeasureTool('move'),
+  },
+  { keys: 'T', key: 't', group: 'Plate', label: 'Arrange the plate', run: (s) => s.arrange() },
+  { keys: '[', key: '[', group: 'Plate', label: 'Previous model', run: (s) => s.cycleModel(-1) },
+  { keys: ']', key: ']', group: 'Plate', label: 'Next model', run: (s) => s.cycleModel(1) },
+  ...(
+    [
+      ['←', 'arrowleft', -1, 0],
+      ['→', 'arrowright', 1, 0],
+      ['↑', 'arrowup', 0, -1],
+      ['↓', 'arrowdown', 0, 1],
+    ] as const
+  ).map(
+    ([keys, key, dx, dz]): Binding => ({
+      keys,
+      key,
+      group: 'Plate',
+      label: `Nudge the model ${{ arrowleft: 'left', arrowright: 'right', arrowup: 'back', arrowdown: 'forward' }[key]}, while moving`,
+      when: (s) => s.measureTool === 'move',
+      // One grid square at a time, so a nudge always lands on the grid's rhythm.
+      run: (s) => s.nudgeModel(dx * (s.plate.cellMm ?? 1), dz * (s.plate.cellMm ?? 1)),
+    }),
+  ),
+  {
+    keys: 'Delete',
+    key: 'delete',
+    group: 'Plate',
+    label: 'Remove the active model from the plate',
+    when: (s) => s.activeId !== null && s.workspace === 'prepare',
+    run: (s) => s.activeId !== null && s.removeModel(s.activeId),
+  },
+
   { keys: 'Q', key: 'q', group: 'Display', label: 'Shaded', run: (s) => s.setDisplay('renderMode', 'shaded') },
   { keys: 'W', key: 'w', group: 'Display', label: 'Wireframe', run: (s) => s.setDisplay('renderMode', 'wireframe') },
   { keys: 'E', key: 'e', group: 'Display', label: 'Shaded with edges', run: (s) => s.setDisplay('renderMode', 'edges') },
@@ -90,7 +133,8 @@ export const BINDINGS: Binding[] = [
   { keys: 'L', key: 'l', group: 'Display', label: 'Part labels', run: (s) => s.setDisplay('labels', !s.display.labels) },
   { keys: 'O', key: 'o', group: 'Display', label: 'Overhangs', run: (s) => s.setDisplay('overhang', !s.display.overhang) },
 
-  { keys: 'Ctrl O', key: 'o', mod: true, group: 'App', label: 'Open a model', run: (_, a) => a.open() },
+  { keys: 'Ctrl O', key: 'o', mod: true, group: 'App', label: 'Open models, replacing the plate', run: (_, a) => a.open() },
+  { keys: 'Ctrl I', key: 'i', mod: true, group: 'App', label: 'Add models to the plate', run: (_, a) => a.add() },
   { keys: 'Ctrl S', key: 's', mod: true, group: 'App', label: 'Save the view as PNG', run: (_, a) => a.screenshot() },
   { keys: 'Ctrl B', key: 'b', mod: true, group: 'App', label: 'Sidebar', run: (s) => s.toggleSidebar() },
   {
@@ -104,4 +148,4 @@ export const BINDINGS: Binding[] = [
   { keys: '?', key: '?', group: 'App', label: 'This list', run: (s) => s.setShortcutsOpen(true) },
 ];
 
-export const GROUPS: Binding['group'][] = ['Camera', 'Tools', 'Display', 'App'];
+export const GROUPS: Binding['group'][] = ['Camera', 'Tools', 'Plate', 'Display', 'App'];

@@ -16,6 +16,7 @@ const MODE_LABEL: Record<string, string> = {
  */
 export function StatusBar() {
   const model = useViewer((s) => s.model);
+  const modelCount = useViewer((s) => s.models.length);
   const unit = useViewer((s) => s.unit);
   const mode = useViewer((s) => s.display.renderMode);
   const projection = useViewer((s) => s.display.projection);
@@ -50,6 +51,12 @@ export function StatusBar() {
       </span>
       <span className="status-sep" />
       <span className="status-item num">{count(model.stats.triangles)} triangles</span>
+      {modelCount > 1 && (
+        <>
+          <span className="status-sep" />
+          <span className="status-item num">{modelCount} models on the plate</span>
+        </>
+      )}
       <span className="status-sep" />
       <span className="status-item">
         {MODE_LABEL[mode] ?? mode}, {projection}

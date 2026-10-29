@@ -6,6 +6,7 @@ const MODE_LABEL: Record<string, string> = {
   shaded: 'Shaded',
   wireframe: 'Wireframe',
   edges: 'Shaded with edges',
+  surface: 'Surface angle',
 };
 
 /**

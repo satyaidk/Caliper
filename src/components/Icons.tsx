@@ -65,6 +65,16 @@ export const IconEdges = ({ size = 18 }: Props) => (
   </svg>
 );
 
+/** A cube whose three visible faces are shaded differently: one tone per facing direction. */
+export const IconSurfaceAngle = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M10 2.8 16.2 6.4 10 10 3.8 6.4z" fill="currentColor" stroke="none" opacity=".2" />
+    <path d="M10 10 3.8 6.4v7.2L10 17.2z" fill="currentColor" stroke="none" opacity=".45" />
+    <path d="M10 10l6.2-3.6v7.2L10 17.2z" fill="currentColor" stroke="none" opacity=".75" />
+    <path d="M10 2.8 16.2 6.4v7.2L10 17.2l-6.2-3.6V6.4z" />
+  </svg>
+);
+
 /* --- stage ---------------------------------------------------------------- */
 
 export const IconPlate = ({ size = 18 }: Props) => (

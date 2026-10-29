@@ -8,6 +8,11 @@ Several models on one plate, zip archives, and recently opened models.
 
 ### Added
 
+- **Surface angle view (N).** A fourth display mode, after GitHub's STL
+  viewer, that colours every surface by the direction it faces: red along +X,
+  green up, blue towards the front. Flat faces read as one even colour, so
+  chamfers, fillets and coarse facets stand out. Colours are tied to the plate,
+  not the camera, so they stay put while orbiting.
 - **Zip archives open.** A `.zip` is unpacked in the browser, reading only the
   entries a loader can use. One model inside opens directly; several open a
   chooser with a filter, Select all, folder, format and size for each.

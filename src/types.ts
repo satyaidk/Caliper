@@ -18,7 +18,7 @@ export interface FormatSpec {
   unit?: SourceUnit;
 }
 
-export type RenderMode = 'shaded' | 'wireframe' | 'edges';
+export type RenderMode = 'shaded' | 'wireframe' | 'edges' | 'surface';
 
 /**
  * Camera presets, numbered the way Bambu Studio numbers them: 0 default,

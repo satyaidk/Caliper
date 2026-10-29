@@ -128,6 +128,7 @@ export const BINDINGS: Binding[] = [
   { keys: 'Q', key: 'q', group: 'Display', label: 'Shaded', run: (s) => s.setDisplay('renderMode', 'shaded') },
   { keys: 'W', key: 'w', group: 'Display', label: 'Wireframe', run: (s) => s.setDisplay('renderMode', 'wireframe') },
   { keys: 'E', key: 'e', group: 'Display', label: 'Shaded with edges', run: (s) => s.setDisplay('renderMode', 'edges') },
+  { keys: 'N', key: 'n', group: 'Display', label: 'Surface angle', run: (s) => s.setDisplay('renderMode', 'surface') },
   { keys: 'G', key: 'g', group: 'Display', label: 'Plate', run: (s) => s.setDisplay('grid', !s.display.grid) },
   { keys: 'S', key: 's', group: 'Display', label: 'Shadows', run: (s) => s.setDisplay('shadows', !s.display.shadows) },
   { keys: 'L', key: 'l', group: 'Display', label: 'Part labels', run: (s) => s.setDisplay('labels', !s.display.labels) },

@@ -8,7 +8,14 @@ import { CameraRig, VIEW_DIRECTIONS } from './CameraRig';
 import { Section } from './Section';
 import { Explode } from './Explode';
 import { angleAt, circleThrough, snapToFeature, type Snap } from './measure';
-import { capColour, filamentMaterial, overhangMaterial, wireMaterial, type OverhangMaterial } from './materials';
+import {
+  capColour,
+  filamentMaterial,
+  overhangMaterial,
+  surfaceAngleMaterial,
+  wireMaterial,
+  type OverhangMaterial,
+} from './materials';
 import { meshTriangles } from './triangles';
 import { analyse, overhangArea, OVERHANG_DEFAULT, type Vec3 } from './printability';
 import { nearestRestingFace, restingFaces, type RestingFace } from './orient';
@@ -231,6 +238,8 @@ export class Engine {
   private overhangOn = false;
   private overhangDeg = OVERHANG_DEFAULT;
   private readonly wire: THREE.MeshBasicMaterial;
+  /** Colours by facing direction, so it needs no theme or filament colour. */
+  private readonly surfaceAngle = surfaceAngleMaterial();
   /** Shared by every outline in the overlay, so clearEdges owns disposing it. */
   private readonly edgeMaterial: THREE.LineBasicMaterial;
   private edgeLines: THREE.LineSegments[] = [];
@@ -1174,6 +1183,7 @@ export class Engine {
   /** The one material a model's meshes should wear right now, or null for their own. */
   private surfaceOverride(model: Mounted): THREE.Material | null {
     if (this.renderMode === 'wireframe') return this.wire;
+    if (this.renderMode === 'surface') return this.surfaceAngle;
     if (this.overhangOn) return model.overhang;
     if (model.authored && model.paintAuthored) return model.solid;
     return null;
@@ -1421,7 +1431,7 @@ export class Engine {
       }
       [model.solid, model.overhang].forEach(touch);
     }
-    [this.wire, this.edgeMaterial].forEach(touch);
+    [this.wire, this.surfaceAngle, this.edgeMaterial].forEach(touch);
   }
 
   /** True when a world point is on the side of the plane that was cut away. */
@@ -1955,7 +1965,7 @@ export class Engine {
     this.hoverMark.dispose();
     this.layMark.geometry.dispose();
     (this.layMark.material as THREE.Material).dispose();
-    [this.wire, this.edgeMaterial].forEach((m) => m.dispose());
+    [this.wire, this.surfaceAngle, this.edgeMaterial].forEach((m) => m.dispose());
     this.renderer.dispose();
   }
 }

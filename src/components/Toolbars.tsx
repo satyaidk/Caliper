@@ -26,6 +26,7 @@ import {
   IconReset,
   IconSection,
   IconShaded,
+  IconSurfaceAngle,
   IconShadow,
   IconUndo,
   IconWire,
@@ -134,6 +135,7 @@ const MODES: { mode: RenderMode; label: string; keys: string; icon: ReactNode }[
   { mode: 'shaded', label: 'Shaded', keys: 'Q', icon: <IconShaded /> },
   { mode: 'wireframe', label: 'Wireframe', keys: 'W', icon: <IconWire /> },
   { mode: 'edges', label: 'Shaded with edges', keys: 'E', icon: <IconEdges /> },
+  { mode: 'surface', label: 'Surface angle', keys: 'N', icon: <IconSurfaceAngle /> },
 ];
 
 /**

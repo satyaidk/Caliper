@@ -16,6 +16,30 @@ export function wireMaterial(colour: number): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({ color: colour, wireframe: true, transparent: true, opacity: 0.7 });
 }
 
+/**
+ * GitHub's "surface angle" view: every surface coloured by the direction it
+ * faces, so a flat face reads as one even colour and any change of angle — a
+ * chamfer, a fillet, a facet left by a coarse export — shows up as a change of
+ * colour that lighting alone can hide.
+ *
+ * MeshNormalMaterial does this with view-space normals, so the colours slide
+ * across the part as the camera turns. This one converts back to world space
+ * (the same trick as the overhang test below), so a colour means a direction on
+ * the plate: up is green, +X is red, +Z (towards the front) is blue.
+ */
+export function surfaceAngleMaterial(): THREE.MeshNormalMaterial {
+  const material = new THREE.MeshNormalMaterial();
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'gl_FragColor = vec4( packNormalToRGB( normal ), diffuseColor.a );',
+      `vec3 caliperWorldNormal = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+      gl_FragColor = vec4(packNormalToRGB(caliperWorldNormal), diffuseColor.a);`,
+    );
+  };
+  material.customProgramCacheKey = () => 'caliper-surface-angle';
+  return material;
+}
+
 export interface OverhangMaterial extends THREE.MeshStandardMaterial {
   setThreshold(degrees: number): void;
   setOverhangColour(hex: number): void;

@@ -1077,15 +1077,18 @@
   display: block;
   overflow: visible;
 }
+/* The pill itself is the dial; this only lights up under the pointer, so the
+   widget has one edge, not a ring drawn inside a ring. */
 .gizmo-dial {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: 1;
+  fill: transparent;
+  transition: fill 120ms var(--ease);
+}
+.gizmo:hover .gizmo-dial {
+  fill: var(--raise);
 }
 .gizmo-spoke {
-  stroke-width: 1.5;
+  stroke-width: 2.25;
   stroke-linecap: round;
-  opacity: 0.45;
 }
 .gizmo-spoke[data-axis='x'] {
   stroke: var(--axis-x);
@@ -1096,24 +1099,11 @@
 .gizmo-spoke[data-axis='z'] {
   stroke: var(--axis-z);
 }
+.gizmo-hub {
+  fill: var(--ink-3);
+}
 .gizmo-arm {
   cursor: pointer;
-}
-.gizmo-cap {
-  stroke-width: 1.5;
-  transition: r 120ms var(--ease);
-}
-/* A filled cap is the positive end; its opposite is a smaller open ring, so
-   the pair reads as one axis and the size says which way round you are. */
-.gizmo-arm[data-positive='true'] .gizmo-cap {
-  r: 8;
-  fill: var(--cap);
-  stroke: var(--cap);
-}
-.gizmo-arm[data-positive='false'] .gizmo-cap {
-  r: 5;
-  fill: var(--panel);
-  stroke: var(--cap);
 }
 .gizmo-arm[data-axis='x'] {
   --cap: var(--axis-x);
@@ -1124,13 +1114,34 @@
 .gizmo-arm[data-axis='z'] {
   --cap: var(--axis-z);
 }
+.gizmo-cap {
+  stroke-width: 1.5;
+  transition:
+    r 120ms var(--ease),
+    fill 120ms var(--ease);
+}
+/* A filled, labelled cap is the positive end. Its opposite is a smaller dot in
+   a tint of the same colour, so the pair reads as one axis and the size says
+   which way round you are. */
+.gizmo-arm[data-positive='true'] .gizmo-cap {
+  r: 9;
+  fill: var(--cap);
+  stroke: var(--cap);
+}
+.gizmo-arm[data-positive='false'] .gizmo-cap {
+  r: 5.5;
+  fill: color-mix(in srgb, var(--cap) 28%, var(--panel));
+  stroke: var(--cap);
+}
 .gizmo-arm[data-positive='true']:hover .gizmo-cap,
 .gizmo-arm[data-positive='true']:focus-visible .gizmo-cap {
-  r: 9.5;
+  r: 10.5;
 }
+/* The negative end grows into a full cap and names itself on hover. */
 .gizmo-arm[data-positive='false']:hover .gizmo-cap,
 .gizmo-arm[data-positive='false']:focus-visible .gizmo-cap {
-  r: 7;
+  r: 9;
+  fill: var(--cap);
 }
 .gizmo-arm:focus-visible {
   outline: none;
@@ -1140,11 +1151,20 @@
   stroke-width: 2.4;
 }
 .gizmo-label {
-  font-size: 8.5px;
+  font-size: 9.5px;
   font-weight: 700;
   text-anchor: middle;
   fill: #ffffff;
   pointer-events: none;
+}
+.gizmo-arm[data-positive='false'] .gizmo-label {
+  font-size: 7.5px;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+.gizmo-arm[data-positive='false']:hover .gizmo-label,
+.gizmo-arm[data-positive='false']:focus-visible .gizmo-label {
+  opacity: 1;
 }
 
 /* --- readout at the foot of the canvas ------------------------------------ */

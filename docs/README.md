@@ -4,6 +4,7 @@
 | --- | --- |
 | [design.md](design.md) | How Caliper 2.0 is built and why: pages, layers, scene graph, rendering, analysis, caching, security |
 | [learning-path.md](learning-path.md) | A beginner's route through the code, in reading order, with an exercise per stop |
+| [slicer-logic.md](slicer-logic.md) ([PDF](slicer-logic.pdf)) | Research report: how PrusaSlicer and Bambu Studio turn a model into G-code, read from their source, and what it means for a future Caliper slicer |
 | [adr/](adr/) | Architecture decision records |
 | [images/](images/) | Screenshots used by the README |
 

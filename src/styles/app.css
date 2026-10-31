@@ -1335,6 +1335,12 @@
 .legend-row i[data-tone='cap'] {
   background: repeating-linear-gradient(-45deg, var(--ink-3) 0 2px, transparent 2px 4px);
 }
+.legend-row i[data-tone='contour'] {
+  height: 2px;
+  border-radius: 0;
+  background: var(--mark);
+  box-shadow: none;
+}
 
 /* --- empty plate ---------------------------------------------------------- */
 .empty-plate {
@@ -1851,6 +1857,331 @@
 .dialog-body {
   padding: 8px 20px 4px;
   overflow-y: auto;
+}
+.makerworld-dialog {
+  width: min(980px, calc(100vw - 32px));
+  max-height: min(790px, calc(100dvh - 32px));
+}
+.makerworld-body {
+  padding: 18px 22px 20px;
+}
+.makerworld-head h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.makerworld-head h2 small {
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+  font-weight: 400;
+}
+.makerworld-status {
+  color: var(--ink-3);
+}
+.makerworld-title-row {
+  margin-bottom: 14px;
+}
+.makerworld-name {
+  margin: 0;
+  font-size: clamp(18px, 2vw, 23px);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.makerworld-subtitle {
+  margin: 5px 0 0;
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}
+.makerworld-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr);
+  align-items: start;
+  gap: 20px;
+}
+.makerworld-gallery {
+  position: sticky;
+  top: 0;
+  min-width: 0;
+}
+.makerworld-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--raise) 72%, transparent), transparent 70%),
+    var(--sunken);
+}
+.makerworld-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.makerworld-preview > span {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  padding: 4px 7px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--app) 88%, transparent);
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.makerworld-preview-note {
+  margin: 9px 0 0;
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+}
+.makerworld-preview-note a {
+  color: var(--ink-1);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+.makerworld-no-preview {
+  padding: 20px;
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}
+.makerworld-thumbnails {
+  display: flex;
+  gap: 7px;
+  margin-top: 9px;
+  padding-bottom: 5px;
+  overflow-x: auto;
+}
+.makerworld-thumbnail {
+  flex: 0 0 70px;
+  width: 70px;
+  height: 54px;
+  padding: 2px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  cursor: pointer;
+}
+.makerworld-thumbnail[data-selected='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.makerworld-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: calc(var(--r-md) - 2px);
+}
+.makerworld-choices {
+  min-width: 0;
+}
+.makerworld-options {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+.makerworld-options legend {
+  margin-bottom: 7px;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.makerworld-profile-list,
+.makerworld-file-list {
+  display: grid;
+  gap: 6px;
+  max-height: 176px;
+  overflow-y: auto;
+  padding: 1px 2px 2px 1px;
+}
+.makerworld-profile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.makerworld-profile[data-selected='true'],
+.makerworld-file[data-selected='true'],
+.makerworld-format[data-selected='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--sunken));
+}
+.makerworld-profile input {
+  flex: none;
+  accent-color: var(--accent);
+}
+.makerworld-profile span {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+.makerworld-profile small {
+  flex: none;
+  color: var(--ink-3);
+}
+.makerworld-profile > img {
+  flex: none;
+  width: 42px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  object-fit: cover;
+}
+.makerworld-file {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  cursor: pointer;
+}
+.makerworld-file input,
+.makerworld-format input {
+  flex: none;
+  accent-color: var(--accent);
+}
+.makerworld-file > img,
+.makerworld-file-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  object-fit: cover;
+}
+.makerworld-file-icon {
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+  font-weight: 700;
+}
+.makerworld-file-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--t-sm);
+}
+.makerworld-file-name b,
+.makerworld-file-name small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.makerworld-file-name b {
+  font-weight: 500;
+}
+.makerworld-file-name small {
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+}
+.makerworld-formats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.makerworld-formats legend {
+  grid-column: 1 / -1;
+}
+.makerworld-format {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  cursor: pointer;
+}
+.makerworld-format[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.makerworld-format span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: var(--t-sm);
+}
+.makerworld-format small {
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.makerworld-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.makerworld-note {
+  max-width: 590px;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+.makerworld-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-height: 34px;
+  text-decoration: none;
+}
+@media (max-width: 720px) {
+  .makerworld-dialog {
+    max-height: calc(100dvh - 20px);
+  }
+  .makerworld-body {
+    padding: 14px;
+  }
+  .makerworld-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 15px;
+  }
+  .makerworld-gallery {
+    position: static;
+  }
+  .makerworld-preview {
+    min-height: 160px;
+    max-height: 34dvh;
+  }
+  .makerworld-profile-list,
+  .makerworld-file-list {
+    max-height: 138px;
+  }
+  .makerworld-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .makerworld-continue {
+    width: 100%;
+  }
 }
 .dialog-foot {
   margin: 0;

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { BY_PIPELINE, FORMATS, PIPELINE_COPY, baseOf, specFor } from '@/lib/formats';
+import { BY_PIPELINE, FORMATS, PIPELINE_COPY, specFor } from '@/lib/formats';
+import { isMakerWorldUrl, modelNameFromUrl } from '@/lib/remote';
+import { parseMakerWorldUrl } from '@/lib/makerworld';
 import { ago, bytes } from '@/lib/format';
 import { useViewer } from '@/store/useViewer';
 import { useInstall, isStandalone } from '@/hooks/useInstall';
@@ -26,6 +28,7 @@ import {
   IconTrash,
 } from './Icons';
 import { Switch } from './ui';
+import { MakerWorldChooser } from './MakerWorldChooser';
 
 const ORDER: Pipeline[] = ['mesh', 'cad', 'bim'];
 
@@ -151,16 +154,24 @@ export function Home({ onOpen }: { onOpen: () => void }) {
   const { canInstall, install } = useInstall();
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState('');
+  const [makerWorldTarget, setMakerWorldTarget] = useState<ReturnType<typeof parseMakerWorldUrl>>(null);
 
   const submitLink = (event: FormEvent) => {
     event.preventDefault();
     try {
       const url = new URL(link.trim());
       if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error();
+      if (isMakerWorldUrl(url.href)) {
+        const target = parseMakerWorldUrl(url.href);
+        if (!target) throw new Error('Paste a MakerWorld model page link, not a search or home page.');
+        setMakerWorldTarget(target);
+        setLinkError('');
+        return;
+      }
       setLinkError('');
-      void openFromUrl(url.href, baseOf(decodeURIComponent(url.pathname)) || 'model');
-    } catch {
-      setLinkError('That is not a web address. It should start with https://');
+      void openFromUrl(url.href, modelNameFromUrl(url.href));
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : 'That is not a valid web address.');
     }
   };
 
@@ -211,6 +222,10 @@ export function Home({ onOpen }: { onOpen: () => void }) {
               Open
             </button>
           </div>
+          <p className="note">
+            Paste a direct model URL or a MakerWorld model page. Caliper reads direct files in memory; MakerWorld
+            profiles open on MakerWorld for download.
+          </p>
           {linkError && (
             <p className="field-error" id="home-link-error">
               {linkError}
@@ -297,6 +312,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
           </ul>
         </section>
       </div>
+      {makerWorldTarget && <MakerWorldChooser target={makerWorldTarget} onClose={() => setMakerWorldTarget(null)} />}
     </div>
   );
 }

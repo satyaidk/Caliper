@@ -206,6 +206,20 @@ describe('meshTriangles', () => {
     assert.equal(meshTriangles(root).total, 12);
   });
 
+  test('can exclude meshes hidden by themselves or an ancestor', async () => {
+    const THREE = await import('three');
+    const { meshTriangles } = await import('../src/viewer/triangles.ts');
+    const root = new THREE.Group();
+    const hiddenParent = new THREE.Group();
+    const hidden = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+    hiddenParent.visible = false;
+    hiddenParent.add(hidden);
+    root.add(hiddenParent, new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+
+    assert.equal(meshTriangles(root, Infinity, true).total, 12);
+    assert.equal(meshTriangles(root).total, 24);
+  });
+
   test('stops at the limit it is given', async () => {
     const THREE = await import('three');
     const { meshTriangles } = await import('../src/viewer/triangles.ts');

@@ -56,6 +56,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (url.origin === location.origin) {
+    if (url.pathname.startsWith('/api/')) return;
     if (request.mode === 'navigate') {
       event.respondWith(networkFirst(request, url.pathname.startsWith('/app') ? '/app/' : '/'));
     } else if (url.pathname.startsWith('/assets/')) {

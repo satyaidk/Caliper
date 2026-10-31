@@ -19,6 +19,7 @@ import {
 import { meshTriangles } from './triangles';
 import { analyse, overhangArea, OVERHANG_DEFAULT, type Vec3 } from './printability';
 import { nearestRestingFace, restingFaces, type RestingFace } from './orient';
+import { sliceContours } from '@/lib/slicing';
 import { fitOnBed, niceStep } from '@/lib/printers';
 import { arrange, placeBeside, type Extent, type Footprint } from '@/lib/arrange';
 import type {
@@ -69,6 +70,8 @@ const HOVER_LIMIT = 6000;
 const ANALYSIS_LIMIT = 2_500_000;
 /** The open-edge check needs a hash entry per edge, so it stops sooner. */
 const EDGE_CHECK_LIMIT = 1_200_000;
+/** Keep interactive layer-outline generation bounded until it moves to a worker. */
+const SLICE_TRIANGLE_LIMIT = 250_000;
 /** Part labels past this many are noise, not information. */
 const LABEL_LIMIT = 40;
 /** Space left between models when they are placed or arranged, in world units. */
@@ -218,6 +221,7 @@ export class Engine {
   private readonly annotations = new Annotations();
   private readonly section = new Section();
   private readonly explode = new Explode();
+  private readonly layerContours: THREE.LineSegments;
 
   private models: Mounted[] = [];
   private active: Mounted | null = null;
@@ -253,6 +257,8 @@ export class Engine {
 
   /* --- section ----------------------------------------------------------- */
   private clip: ClipState | null = null;
+  private layerPreviewAt: number | null = null;
+  private layerContoursLimited = false;
 
   /* --- labels ------------------------------------------------------------ */
   private labelSink: ((anchors: LabelAnchor[]) => void) | null = null;
@@ -320,11 +326,18 @@ export class Engine {
       transparent: true,
       opacity: skin.edgeOpacity,
     });
+    this.layerContours = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: skin.mark, depthTest: false, depthWrite: false, toneMapped: false }),
+    );
+    this.layerContours.renderOrder = 4;
+    this.layerContours.raycast = noRaycast;
 
     this.scene.add(
       this.modelGroup,
       this.stage.group,
       this.section.group,
+      this.layerContours,
       this.annotations.group,
     );
     this.buildMarkers();
@@ -601,6 +614,7 @@ export class Engine {
     this.section.attach(this.allMeshes());
     this.applyRenderMode();
     this.applyClip();
+    this.refreshLayerContours();
     this.syncPlate();
     this.invalidate();
     return id;
@@ -696,6 +710,80 @@ export class Engine {
     return box;
   }
 
+  /** Rebuilds the visible layer's perimeter lines in world space. */
+  private refreshLayerContours(): boolean {
+    const replaceGeometry = (vertices: number[]) => {
+      const previous = this.layerContours.geometry;
+      this.layerContours.geometry = new THREE.BufferGeometry();
+      this.layerContours.geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      previous.dispose();
+    };
+
+    this.layerContoursLimited = false;
+    const bounds = this.visibleBounds();
+    if (this.layerPreviewAt === null || bounds.isEmpty()) {
+      if (this.layerContours.geometry.getAttribute('position')?.count) replaceGeometry([]);
+      return true;
+    }
+
+    const sources: { source: ReturnType<typeof meshTriangles>['source']; matrix: THREE.Matrix4 }[] = [];
+    let total = 0;
+    for (const model of this.models) {
+      if (!model.holder.visible) continue;
+      model.root.updateWorldMatrix(true, true);
+      const { source, total: modelTotal } = meshTriangles(model.root, SLICE_TRIANGLE_LIMIT, true);
+      total += modelTotal;
+      if (total > SLICE_TRIANGLE_LIMIT) {
+        this.layerContoursLimited = true;
+        replaceGeometry([]);
+        return false;
+      }
+      sources.push({ source, matrix: model.root.matrixWorld.clone() });
+    }
+
+    const size = bounds.getSize(new THREE.Vector3());
+    const planeY = bounds.min.y + size.y * THREE.MathUtils.clamp(this.layerPreviewAt, 0.0005, 1);
+    const transformed = new Float64Array(9);
+    const point = new THREE.Vector3();
+    const source = (visit: (triangle: ArrayLike<number>) => void) => {
+      for (const item of sources) {
+        item.source((triangle) => {
+          for (let corner = 0; corner < 3; corner++) {
+            const i = corner * 3;
+            point.set(triangle[i], triangle[i + 1], triangle[i + 2]).applyMatrix4(item.matrix);
+            transformed[i] = point.x;
+            transformed[i + 1] = point.y;
+            transformed[i + 2] = point.z;
+          }
+          visit(transformed);
+        });
+      }
+    };
+
+    const tolerance = Math.max(size.length() * 1e-8, 1e-8);
+    const loops = sliceContours(source, planeY, tolerance);
+    const vertices: number[] = [];
+    for (const loop of loops) {
+      for (let i = 0; i < loop.length; i++) {
+        const a = loop[i];
+        const b = loop[(i + 1) % loop.length];
+        vertices.push(a.x, planeY, a.z, b.x, planeY, b.z);
+      }
+    }
+    replaceGeometry(vertices);
+    return true;
+  }
+
+  /** Selects a normalized plate-height plane and shows its stitched contours. */
+  setLayerPreview(at: number | null): boolean {
+    const next = at === null ? null : THREE.MathUtils.clamp(at, 0, 1);
+    if (next === this.layerPreviewAt) return !this.layerContoursLimited;
+    this.layerPreviewAt = next;
+    const complete = this.refreshLayerContours();
+    this.invalidate();
+    return complete;
+  }
+
   /** Takes every model off the plate. */
   clearModel() {
     this.endDrag();
@@ -704,6 +792,7 @@ export class Engine {
     this.clearEdges();
     for (const model of this.models) this.unmount(model);
     this.models = [];
+    this.refreshLayerContours();
     this.active = null;
     this.worldPerMm = null;
     this.partCentres = null;
@@ -783,6 +872,7 @@ export class Engine {
     }
     this.partCentres = null;
     this.section.setCapColour(capColour(model?.colour ?? this.filament, this.stage.skin.cap));
+    this.refreshLayerContours();
     if (notify) this.hooks.onActiveModel(model?.id ?? null);
     this.invalidate();
   }
@@ -888,6 +978,7 @@ export class Engine {
   private afterLayout() {
     this.partCentres = null;
     this.applyClip();
+    this.refreshLayerContours();
     this.syncPlate();
     this.invalidate();
   }
@@ -935,6 +1026,7 @@ export class Engine {
     drag.last.copy(point);
     drag.moved = true;
     if (this.selectedNode) this.selectionMark.show(this.selectedNode);
+    this.refreshLayerContours();
     this.invalidate();
   }
 
@@ -1096,6 +1188,7 @@ export class Engine {
     this.clearMeasurements();
     if (this.selectedNode) this.selectionMark.show(this.selectedNode);
     this.applyClip();
+    this.refreshLayerContours();
     this.syncPlate();
     this.hooks.onTransform(this.dimensions());
     this.frameAll();
@@ -1305,6 +1398,7 @@ export class Engine {
     for (const model of this.models) model.overhang.setOverhangColour(skin.over);
     this.edgeMaterial.color.setHex(skin.edgeInk);
     this.edgeMaterial.opacity = skin.edgeOpacity;
+    (this.layerContours.material as THREE.LineBasicMaterial).color.setHex(skin.mark);
     this.section.setCapColour(capColour(this.active?.colour ?? this.filament, skin.cap));
     this.invalidate();
   }
@@ -1460,6 +1554,7 @@ export class Engine {
     this.annotations.invalidate();
     if (this.selectedNode) this.selectionMark.show(this.selectedNode);
     this.applyClip();
+    this.refreshLayerContours();
     this.invalidate();
   }
 
@@ -1482,6 +1577,7 @@ export class Engine {
     this.hoverMark.hide();
     this.partCentres = null;
     this.hooks.onParts(this.partList());
+    this.refreshLayerContours();
     this.invalidate();
   }
 
@@ -1960,6 +2056,8 @@ export class Engine {
     this.rig.dispose();
     this.annotations.dispose();
     this.section.dispose();
+    this.layerContours.geometry.dispose();
+    (this.layerContours.material as THREE.Material).dispose();
     this.stage.dispose();
     this.selectionMark.dispose();
     this.hoverMark.dispose();

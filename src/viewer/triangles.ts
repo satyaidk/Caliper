@@ -27,14 +27,25 @@ export function fromArray(values: ArrayLike<number>): TriangleSource {
  *
  * `limit` caps the work on very large models: past it, the stream stops and
  * the caller is told so through the return value.
+ * `visibleOnly` excludes meshes under a hidden node, for visual tools such as
+ * the layer preview; analysis defaults to including hidden parts.
  */
-export function meshTriangles(root: THREE.Object3D, limit = Infinity): { source: TriangleSource; total: number } {
+export function meshTriangles(
+  root: THREE.Object3D,
+  limit = Infinity,
+  visibleOnly = false,
+): { source: TriangleSource; total: number } {
   root.updateWorldMatrix(true, true);
   const toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert();
 
   const meshes: { geometry: THREE.BufferGeometry; matrix: THREE.Matrix4 }[] = [];
   let total = 0;
   root.traverse((node) => {
+    if (visibleOnly) {
+      for (let ancestor: THREE.Object3D | null = node; ancestor && ancestor !== root.parent; ancestor = ancestor.parent) {
+        if (!ancestor.visible) return;
+      }
+    }
     const mesh = node as THREE.Mesh;
     if (!mesh.isMesh || mesh.userData.caliperHelper) return;
     const geometry = mesh.geometry as THREE.BufferGeometry;

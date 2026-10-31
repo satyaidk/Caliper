@@ -13,11 +13,11 @@ import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js';
 import { AMFLoader } from 'three/examples/jsm/loaders/AMFLoader.js';
 import { VRMLLoader } from 'three/examples/jsm/loaders/VRMLLoader.js';
 
-
 import { baseOf, extOf } from '@/lib/formats';
 import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
+import { applyBambu3mfColors } from './3mf-colors';
 import type { LoadContext, LoadResult } from '@/types';
 
 /**
@@ -151,7 +151,9 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
     }
 
     case '3mf': {
-      const object = new ThreeMFLoader(manager).parse(await arrayBuffer(file));
+      const data = await arrayBuffer(file);
+      const object = new ThreeMFLoader(manager).parse(data);
+      applyBambu3mfColors(object, data);
       object.name = file.name;
       return { object, hasAuthoredMaterials: true };
     }

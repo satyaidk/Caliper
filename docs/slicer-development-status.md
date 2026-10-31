@@ -26,6 +26,11 @@ plan in [slicer-logic.md](slicer-logic.md#224-a-phased-plan).
   CORS/network failures. It does not save files or use a third-party proxy.
 - Added focused tests in `test/slicing.test.ts` and `test/remote.test.ts`.
 - Recorded the MIT/AGPL boundary and phase-1 scope in ADR 0007.
+- Added Bambu 3MF project-color handling in `src/viewer/loaders/3mf-colors.ts`:
+  the saved filament palette and object/part extruder assignments are applied, and
+  whole-face `paint_color`/`mmu_segmentation` assignments render with the exact
+  palette colors. Standard ThreeMFLoader colors remain untouched. Encoded
+  within-face paint subdivision is not yet tessellated by Caliper.
 
 ## Important link limitation
 
@@ -71,7 +76,7 @@ bundle Bambu Studio code: it is AGPL-3.0, while Caliper remains MIT.
 
 ## Verification run
 
-- `npm test` — passed (166 tests).
+- `npm test` — passed (171 tests).
 - `npm run build` — passed.
 - `npm run contrast` — passed (60 text pairs).
 - `git diff --check` — passed.

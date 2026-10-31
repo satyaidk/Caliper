@@ -262,7 +262,7 @@ Each decision with lasting consequences has an ADR in [`docs/adr/`](docs/adr/):
 
 - Open recent files again from the Home tab, using the File System Access API where the browser supports it
 - Measure between features — plane to plane, edge to edge — rather than only between picked points
-- Per-part filament colours for multi-material models, read from 3MF where the file carries them
+- Complete 3MF paint import for within-face color subdivision in Bambu/Orca projects
 - Export the reoriented part as STL or 3MF, ready for the slicer
 - Shareable links that carry measurements and the camera
 - A desktop build through Tauri for file associations on browsers without the File Handling API

@@ -4,7 +4,8 @@ import { computeStats } from '@/viewer/analyze';
 import { buildContext, loadModel } from '@/viewer/loaders';
 import { OVERHANG_DEFAULT } from '@/viewer/printability';
 import { defaultUnitFor, extOf, specFor } from '@/lib/formats';
-import { MM_PER, bedById } from '@/lib/printers';
+import { MM_PER, bedById, fractionAtLayer, layerAtFraction } from '@/lib/printers';
+import { fetchRemoteModel, isMakerWorldUrl } from '@/lib/remote';
 import { FILAMENTS, nextColour } from '@/lib/colours';
 import { extractArchive, isArchive } from '@/lib/archive';
 import { MAX_MODELS, capacity, companionsFor, fileKey, needsChooser, sortIntake } from '@/lib/intake';
@@ -328,6 +329,8 @@ const thumbTimers = new Map<number, number>();
 let busy = false;
 
 export const useViewer = create<ViewerState>((set, get) => {
+  let layerContourWarningShown = false;
+
   const persist = () => {
     const { display, unit, sidebarOpen, bedId, filament, paintAuthored, overhangDeg, layerHeight, keepRecent } = get();
     writePrefs({ display, unit, sidebarOpen, bedId, filament, paintAuthored, overhangDeg, layerHeight, keepRecent });
@@ -346,15 +349,34 @@ export const useViewer = create<ViewerState>((set, get) => {
    * switching tab never leaves the other tab's cut in place.
    */
   const syncView = () => {
-    const { engine, workspace, section, layerAt, display, overhangDeg } = get();
+    const { engine, workspace, section, layerAt, layerHeight, scene, display, overhangDeg } = get();
     if (!engine) return;
     const preview = workspace === 'preview';
+    const previewAt = preview
+      ? fractionAtLayer(layerAtFraction(layerAt, scene.y, layerHeight), scene.y, layerHeight)
+      : null;
     const clip: ClipState | null = preview
-      ? { axis: 'y', at: layerAt, flip: false }
+      ? { axis: 'y', at: previewAt ?? 1, flip: false }
       : section.on
         ? { axis: section.axis, at: section.at, flip: section.flip }
         : null;
     engine.setClip(clip);
+    if (preview) {
+      const complete = engine.setLayerPreview(previewAt);
+      if (!complete && !layerContourWarningShown) {
+        layerContourWarningShown = true;
+        get().toast({
+          tone: 'info',
+          title: 'Layer outlines skipped for this model',
+          text: 'Interactive contour drawing is limited to 250,000 triangles. The layer cut still works.',
+        });
+      } else if (complete) {
+        layerContourWarningShown = false;
+      }
+    } else {
+      engine.setLayerPreview(null);
+      layerContourWarningShown = false;
+    }
     engine.setOverhang(preview || display.overhang, overhangDeg);
   };
 
@@ -761,16 +783,21 @@ export const useViewer = create<ViewerState>((set, get) => {
     async openFromUrl(url, filename) {
       set({ status: 'loading', progressNote: `Fetching ${filename}`, progress: null });
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`The server replied ${response.status}.`);
-        const blob = await response.blob();
-        await get().open([new File([blob], filename, { type: blob.type })]);
+        await get().open([await fetchRemoteModel(url, filename)]);
       } catch (error) {
         set({ status: get().models.length ? 'ready' : 'idle', progress: null, progressNote: '' });
+        const makerWorld = isMakerWorldUrl(url);
+        const message = error instanceof Error ? error.message : 'The file could not be fetched.';
+        const makerWorldCors = makerWorld && message.startsWith('The browser could not access this link.');
         get().toast({
           tone: 'error',
-          title: 'Download failed',
-          text: error instanceof Error ? error.message : 'The file could not be fetched.',
+          title: makerWorldCors ? 'MakerWorld link needs a download' : 'Could not open link',
+          text: makerWorldCors
+            ? 'MakerWorld does not allow Caliper to read this link cross-origin. Download the model on MakerWorld, then choose Open a model in Caliper.'
+            : message,
+          ...(makerWorld
+            ? { action: { label: 'Open on MakerWorld', run: () => window.open(url, '_blank', 'noopener,noreferrer') } }
+            : {}),
         });
       }
     },

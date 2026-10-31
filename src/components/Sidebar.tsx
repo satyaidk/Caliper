@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useViewer, FILAMENTS, LAYER_HEIGHTS, useMm, type ModelEntry } from '@/store/useViewer';
 import { area, bytes, count, degrees, dim, grams, ms, shortName, volume } from '@/lib/format';
 import { PIPELINE_COPY } from '@/lib/formats';
-import { BEDS, MM_PER, bedById, fitOnBed, layerAtFraction, layerCount } from '@/lib/printers';
+import { BEDS, MM_PER, bedById, fitOnBed } from '@/lib/printers';
+import { generateLayerPlan, layerIndexAtFraction } from '@/lib/slicing';
 import { MAX_MODELS } from '@/lib/intake';
 import type { Measurement, SourceUnit, UnitSystem } from '@/types';
 import {
@@ -490,10 +491,11 @@ function LayerSection() {
   const unit = useViewer((s) => s.unit);
   // Layers run up through everything on the plate, as a slicer's do.
   const heightMm = useViewer((s) => s.scene.y);
+  const layers = useMemo(() => generateLayerPlan(heightMm, { layerHeight }), [heightMm, layerHeight]);
   if (!model) return null;
 
-  const total = layerCount(heightMm, layerHeight);
-  const layer = layerAtFraction(layerAt, heightMm, layerHeight);
+  const total = layers.length;
+  const layer = layerIndexAtFraction(layerAt, layers, heightMm);
 
   return (
     <SideSection icon={<IconPreview size={16} />} title="Layers">
@@ -513,7 +515,7 @@ function LayerSection() {
       </label>
       <Field label="Layers in the part" value={count(total)} />
       <Field label="Cut at layer" value={`${count(layer)} of ${count(total)}`} />
-      <Field label="Cut height" value={dim(Math.min(layer * layerHeight, heightMm), unit)} />
+      <Field label="Cut height" value={dim(layers[layer - 1]?.sliceZ ?? 0, unit)} />
       <p className="note">Drag the slider beside the plate to step through the part from the plate up.</p>
     </SideSection>
   );

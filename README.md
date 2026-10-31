@@ -21,7 +21,7 @@
 
 ## Overview
 
-Caliper opens a 3D model in a browser tab and answers the questions asked before printing or machining it: how big it is, how big a feature on it is, which way up it should sit, what it looks like inside, and whether it will print without support. The file is read on the device; there is no server, no account and no upload.
+Caliper opens a 3D model in a browser tab and answers the questions asked before printing or machining it: how big it is, how big a feature on it is, which way up it should sit, what it looks like inside, and whether it will print without support. Local files stay on the device. Pasting a MakerWorld page fetches only public profile metadata through Caliper's same-origin API; downloading the model remains on MakerWorld and may require a MakerWorld account.
 
 Version 2 rebuilds the interface after Bambu Studio, the slicer most people opening a model already have in another window. The palette is taken from Bambu Studio's source, the workspace is split into the same Home, Prepare and Preview tabs, the sidebar runs Printer, Filament and Objects in the same order, and the keys are the same keys. Caliper ships as two pages: a website at `/` whose hero is the real viewer running on a generated part, and the app at `/app/`, which installs as an offline-capable desktop or phone app.
 

@@ -1,4 +1,5 @@
 import type { SourceUnit } from '@/types';
+import { generateLayerPlan, layerFractionAt, layerIndexAtFraction } from './slicing';
 
 /**
  * Build plates, and the one question a slicer answers before any other: does
@@ -91,26 +92,23 @@ export function niceStep(span: number, cells = 24): number {
 }
 
 /* --- layers ------------------------------------------------------------------
-   Preview cuts the part at a layer boundary. The cut is stored as a fraction of
+   Preview cuts the part at the middle of a layer. The cut is stored as a fraction of
    the part's height, because that is what the clipping plane takes; these turn
    it into the layer number a slicer would print, and back. */
 
 /** How many layers a part of `heightMm` prints in. The last one may be partial. */
 export function layerCount(heightMm: number, layerHeight: number): number {
-  if (!(heightMm > 0) || !(layerHeight > 0)) return 1;
-  return Math.max(1, Math.ceil(heightMm / layerHeight - 1e-9));
+  return generateLayerPlan(heightMm, { layerHeight }).length;
 }
 
-/** The layer a cut at `fraction` of the height falls in, 1-based. */
+/** The layer nearest a cut at `fraction` of the height, 1-based. */
 export function layerAtFraction(fraction: number, heightMm: number, layerHeight: number): number {
-  const total = layerCount(heightMm, layerHeight);
-  if (!(heightMm > 0) || !(layerHeight > 0)) return total;
-  const layer = Math.ceil((fraction * heightMm) / layerHeight - 1e-6);
-  return Math.min(total, Math.max(1, layer));
+  const layers = generateLayerPlan(heightMm, { layerHeight });
+  return layerIndexAtFraction(fraction, layers, heightMm);
 }
 
-/** The fraction of the height at the top of layer `layer`. */
+/** The normalized mid-height of a layer. */
 export function fractionAtLayer(layer: number, heightMm: number, layerHeight: number): number {
-  if (!(heightMm > 0)) return 1;
-  return Math.min(1, Math.max(0, (layer * layerHeight) / heightMm));
+  const layers = generateLayerPlan(heightMm, { layerHeight });
+  return layerFractionAt(layer, layers, heightMm);
 }

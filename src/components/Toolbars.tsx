@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useViewer } from '@/store/useViewer';
 import { dim } from '@/lib/format';
 import { EXPLODE_MAX } from '@/viewer/Explode';
-import { fractionAtLayer, layerAtFraction, layerCount } from '@/lib/printers';
+import { generateLayerPlan, layerFractionAt, layerIndexAtFraction } from '@/lib/slicing';
 import type { Axis, MeasureTool, RenderMode } from '@/types';
 import {
   IconAdd,
@@ -429,19 +429,21 @@ export function LayerSlider() {
   const model = useViewer((s) => s.model);
   // From the plate up through the tallest model, as a slicer slices a plate.
   const height = useViewer((s) => s.scene.y);
+  const layers = useMemo(() => generateLayerPlan(height, { layerHeight }), [height, layerHeight]);
   if (!model) return null;
 
-  const total = layerCount(height, layerHeight);
-  const layer = layerAtFraction(layerAt, height, layerHeight);
+  const total = layers.length;
+  const layer = layerIndexAtFraction(layerAt, layers, height);
   const goTo = (next: number) =>
-    setLayerAt(fractionAtLayer(Math.min(total, Math.max(1, next)), height, layerHeight));
+    setLayerAt(layerFractionAt(Math.min(total, Math.max(1, next)), layers, height));
+  const cutHeight = layers[layer - 1]?.sliceZ ?? 0;
 
   return (
     <div className="layers" aria-label="Layer slider">
       <div className="layers-read">
         <b className="num">{layer.toLocaleString()}</b>
         <span className="num">of {total.toLocaleString()}</span>
-        <span className="num">{Math.min(layer * layerHeight, height).toFixed(2)} mm</span>
+        <span className="num">{cutHeight.toFixed(2)} mm</span>
       </div>
       <button type="button" className="layers-step" onClick={() => goTo(layer + 1)} aria-label="Up one layer">
         +
@@ -486,6 +488,10 @@ export function PreviewLegend() {
       <div className="legend-row">
         <i data-tone="cap" />
         Cut face at the current layer
+      </div>
+      <div className="legend-row">
+        <i data-tone="contour" />
+        Layer outline at mid-height
       </div>
     </div>
   );

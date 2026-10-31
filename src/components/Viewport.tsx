@@ -6,6 +6,7 @@ import { FORMATS } from '@/lib/formats';
 import { spreadLabels } from '@/lib/labels';
 import { Gizmo } from './Gizmo';
 import { CanvasToolbar, LayerSlider, PreviewLegend, ToolPanels, ViewBar } from './Toolbars';
+import { FeatureLegend } from './PrintPanel';
 import { readout } from './Sidebar';
 import { IconClose } from './Icons';
 
@@ -244,6 +245,7 @@ export function Viewport({ dragging, onOpen, onAdd }: { dragging: boolean; onOpe
 
   const empty = status === 'idle';
   const preview = workspace === 'preview';
+  const sliced = useViewer((s) => s.slice.status === 'done');
 
   return (
     <div className="stage" ref={hostRef} data-tool={tool} data-workspace={workspace}>
@@ -253,7 +255,7 @@ export function Viewport({ dragging, onOpen, onAdd }: { dragging: boolean; onOpe
       {!empty && <PartLabels />}
 
       {!preview && <CanvasToolbar onOpen={onOpen} onAdd={onAdd} />}
-      {preview && <PreviewLegend />}
+      {preview && (sliced ? <FeatureLegend /> : <PreviewLegend />)}
       {!empty && <ToolPanels />}
       {!empty && (
         <div className="stage-corner">

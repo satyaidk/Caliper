@@ -554,6 +554,7 @@
   margin: 0;
 }
 
+
 .row-actions {
   display: flex;
   align-items: center;
@@ -566,14 +567,20 @@
 /* ================================================================ SIDEBAR == */
 .sidebar {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--app);
+  border-right: 1px solid var(--line);
+}
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 6px 0 24px;
+  padding: 6px 0 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--app);
-  border-right: 1px solid var(--line);
 }
 
 .side-section {
@@ -2898,4 +2905,232 @@
   .recent-actions {
     opacity: 1;
   }
+}
+
+/* ============================================================ SLICING ==== */
+/* The Slice bar is pinned under the sidebar, as Bambu Studio pins its own. */
+.slice-bar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--line-strong);
+}
+.slice-go {
+  flex: 1;
+  height: 38px;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.slice-progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.slice-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: slice-spin 0.8s linear infinite;
+}
+@keyframes slice-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slice-spinner {
+    animation-duration: 2.4s;
+  }
+}
+.slice-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--t-sm);
+  line-height: 1.45;
+}
+.print-alert {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: var(--r-md);
+  background: var(--accent-wash);
+  border: 1px solid var(--accent-line);
+  font-size: var(--t-sm);
+}
+.print-alert p {
+  margin: 0;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.stepper button {
+  width: 28px;
+  height: 26px;
+  border: 0;
+  background: var(--raise);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.stepper button:hover:not(:disabled) {
+  background: var(--raise-2);
+}
+.stepper button:disabled {
+  color: var(--ink-4);
+  cursor: default;
+}
+.stepper output {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 600;
+}
+.link-btn {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  font-size: var(--t-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The print ticket: a job slip with a torn-off line between the job and its checks. */
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0 8px;
+  padding: 16px 14px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.ticket-head {
+  display: grid;
+  gap: 2px;
+}
+.ticket-time {
+  font-size: var(--t-2xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.ticket-sub {
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}
+.ticket-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 2px dashed var(--line-strong);
+}
+.ticket-facts div {
+  min-width: 0;
+}
+.ticket-facts dt {
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+}
+.ticket-facts dd {
+  margin: 2px 0 0;
+  font-size: var(--t-sm);
+  font-weight: 550;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ticket-h {
+  margin: 0 0 8px;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.checklist li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: var(--t-sm);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.check-mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--ok);
+}
+.checklist li[data-status='warn'] .check-mark {
+  background: var(--warn);
+}
+.checklist li[data-status='fail'] .check-mark {
+  background: var(--danger);
+}
+.checklist li[data-status='fail'] {
+  color: var(--ink);
+}
+.check-detail {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+.ticket-download {
+  height: 40px;
+  gap: 8px;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.ticket-locked {
+  margin: -6px 0 0;
+  color: var(--danger);
+  font-size: var(--t-sm);
+}
+.ticket-first {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  font-size: var(--t-sm);
+}
+.ticket-first summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.ticket-first ol {
+  margin: 8px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  line-height: 1.45;
+}
+.ticket-file {
+  overflow-wrap: anywhere;
 }

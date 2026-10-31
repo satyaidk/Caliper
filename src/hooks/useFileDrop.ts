@@ -24,11 +24,15 @@ export function useFileDrop(onFiles: (files: File[]) => void) {
         out.push(file);
         return;
       }
+      // readEntries() returns at most 100 entries per call — loop until exhausted.
       const reader = (entry as FileSystemDirectoryEntry).createReader();
-      const entries = await new Promise<FileSystemEntry[]>((resolve) =>
-        reader.readEntries(resolve, () => resolve([])),
-      );
-      for (const child of entries) await readEntry(child, `${path}${entry.name}/`, out);
+      let batch: FileSystemEntry[];
+      do {
+        batch = await new Promise<FileSystemEntry[]>((resolve) =>
+          reader.readEntries(resolve, () => resolve([])),
+        );
+        for (const child of batch) await readEntry(child, `${path}${entry.name}/`, out);
+      } while (batch.length > 0);
     },
     [],
   );

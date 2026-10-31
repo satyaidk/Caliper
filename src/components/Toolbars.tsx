@@ -430,13 +430,22 @@ export function LayerSlider() {
   // From the plate up through the tallest model, as a slicer slices a plate.
   const height = useViewer((s) => s.scene.y);
   const layers = useMemo(() => generateLayerPlan(height, { layerHeight }), [height, layerHeight]);
-  if (!model) return null;
+  // After slicing, the slider walks the real toolpath layers at their real heights.
+  const slicedZ = useViewer((s) => s.slice.layerZ);
+  const toolpathLayer = useViewer((s) => s.toolpathLayer);
+  const setToolpathLayer = useViewer((s) => s.setToolpathLayer);
+  // A previewed print file has toolpaths but no model on the plate.
+  if (!model && !slicedZ.length) return null;
 
-  const total = layers.length;
-  const layer = layerIndexAtFraction(layerAt, layers, height);
-  const goTo = (next: number) =>
-    setLayerAt(layerFractionAt(Math.min(total, Math.max(1, next)), layers, height));
-  const cutHeight = layers[layer - 1]?.sliceZ ?? 0;
+  const sliced = slicedZ.length > 0;
+  const total = sliced ? slicedZ.length : layers.length;
+  const layer = sliced ? toolpathLayer : layerIndexAtFraction(layerAt, layers, height);
+  const goTo = (next: number) => {
+    const target = Math.min(total, Math.max(1, next));
+    if (sliced) setToolpathLayer(target);
+    else setLayerAt(layerFractionAt(target, layers, height));
+  };
+  const cutHeight = sliced ? slicedZ[layer - 1] ?? 0 : layers[layer - 1]?.sliceZ ?? 0;
 
   return (
     <div className="layers" aria-label="Layer slider">

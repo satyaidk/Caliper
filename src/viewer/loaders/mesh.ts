@@ -18,6 +18,7 @@ import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
 import { applyBambu3mfColors, getBambu3mfFilamentColors } from './3mf-colors';
+import { SLICED_3MF_MESSAGE, slicedPlates } from '@/lib/sliced3mf';
 import type { LoadContext, LoadResult } from '@/types';
 
 /**
@@ -152,7 +153,19 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
 
     case '3mf': {
       const data = await arrayBuffer(file);
-      const object = new ThreeMFLoader(manager).parse(data);
+      const sliced = slicedPlates(data).length > 0;
+      let object: THREE.Group;
+      try {
+        object = new ThreeMFLoader(manager).parse(data);
+      } catch (error) {
+        if (sliced) throw new Error(SLICED_3MF_MESSAGE);
+        throw error;
+      }
+      let hasMesh = false;
+      object.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) hasMesh = true;
+      });
+      if (sliced && !hasMesh) throw new Error(SLICED_3MF_MESSAGE);
       applyBambu3mfColors(object, data);
       object.name = file.name;
       return {

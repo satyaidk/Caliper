@@ -44,6 +44,27 @@ Several models on one plate, zip archives, and recently opened models.
 - `Engine.setPlate(bed)` no longer takes a unit; each model's unit is set with
   `setModelUnit`. `Engine.setModel` still replaces the plate with one model.
 
+### Added
+
+- **Slice and print for the Bambu Lab P1S.** Print settings for filament, build plate, quality, infill, walls, adhesion and supports; slicing in a Web Worker with Bambu's own P1S profiles fetched from a pinned Bambu Studio release; a toolpath preview coloured by feature; and a `.gcode.3mf` download for microSD printing. See [ADR 0008](docs/adr/0008-p1s-print-files-from-fetched-profiles.md).
+- **G-code preview.** Opening a `.gcode.3mf` or `.gcode` from Bambu Studio, OrcaSlicer, PrusaSlicer or Cura shows its toolpaths in Preview, coloured by feature, with the layer slider and the time and filament its slicer recorded. Arc moves are followed, and Bambu's purge line and nozzle wipe are left out. Preview only: Caliper does not check or re-export files it did not slice.
+- **Pre-flight safety check.** Every print file is re-read independently before download. Download stays locked if any move leaves the plate or enters the excluded corner, Z exceeds 250 mm, flow or speed passes the limits, or the start and end sequence has been changed.
+
+### Changed
+
+- **A simpler start.** The Home tab and the website are shorter: open, slice, print. The old heuristic Preview overlays and the inspection-only G-code export are replaced by the real slicer.
+
+### Fixed
+
+- **Experimental G-code and slicer Preview.** Exported parts are no longer
+  mirrored front to back. Supports measure overhangs in millimetres instead of
+  viewer world units, keep XY and contact gaps, and stop on the part below.
+  Bridge, solid and sparse paths stay inside the walls and no longer overlap
+  each other. Bridges use nozzle-diameter flow. Short layers slow down to the
+  minimum print speed. Preview no longer draws every layer as a solid shell.
+  Changing the overhang angle refreshes the overhang area again. Details are in
+  [docs/slicer-development-status.md](docs/slicer-development-status.md#review-fixes-2026-11-01).
+
 ## [2.0.0] — 2026-10-15
 
 A redesign around Bambu Studio's interface, Bambu Studio's viewer tools, and a

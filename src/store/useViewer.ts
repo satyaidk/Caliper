@@ -6,6 +6,14 @@ import { OVERHANG_DEFAULT } from '@/viewer/printability';
 import { defaultUnitFor, extOf, specFor } from '@/lib/formats';
 import { MM_PER, bedById, fractionAtLayer, layerAtFraction } from '@/lib/printers';
 import { fetchRemoteModel, isMakerWorldUrl } from '@/lib/remote';
+import { startSlice, type SliceJob } from '@/viewer/slicer';
+import { parseGcode } from '@/lib/gcodeParse';
+import { slicedPlates } from '@/lib/sliced3mf';
+import { featureRgb } from '@/lib/featureColors';
+import { strFromU8, unzipSync } from 'fflate';
+import type { PreviewData, SliceStage, SliceSummary } from '@/viewer/sliceProtocol';
+import { PLATE_TYPES, type SliceChoices } from '@/lib/bambu/settings';
+import { FILAMENT_PRESETS, PROCESS_PRESETS } from '@/lib/bambu/profiles';
 import { FILAMENTS, nextColour } from '@/lib/colours';
 import { extractArchive, isArchive } from '@/lib/archive';
 import { MAX_MODELS, capacity, companionsFor, fileKey, needsChooser, sortIntake } from '@/lib/intake';
@@ -136,6 +144,7 @@ interface Prefs {
   paintAuthored: boolean;
   overhangDeg: number;
   layerHeight: number;
+  slice: SliceChoices;
   keepRecent: boolean;
 }
 
@@ -179,6 +188,72 @@ function initialTheme(): Theme {
 }
 
 const saved = readPrefs();
+
+export const DEFAULT_SLICE_CHOICES: SliceChoices = {
+  processId: 'standard',
+  filamentId: 'bambu-pla-basic',
+  plateType: 'Textured PEI Plate',
+  infillPercent: 15,
+  wallLoops: 2,
+  supports: false,
+  adhesion: 'skirt',
+};
+
+/** Layer heights of the process presets, so the pre-slice slider matches. */
+export const PROCESS_LAYER_HEIGHT: Record<string, number> = { standard: 0.2, fine: 0.16, draft: 0.24 };
+
+/** Accepts saved choices only if every field is still a known, in-range value. */
+function validChoices(value: Partial<SliceChoices> | undefined): SliceChoices {
+  const merged = { ...DEFAULT_SLICE_CHOICES, ...(value ?? {}) };
+  const ok =
+    PROCESS_PRESETS.some((preset) => preset.id === merged.processId) &&
+    FILAMENT_PRESETS.some((preset) => preset.id === merged.filamentId) &&
+    PLATE_TYPES.some((plate) => plate.id === merged.plateType) &&
+    Number.isInteger(merged.infillPercent) &&
+    merged.infillPercent >= 0 &&
+    merged.infillPercent <= 100 &&
+    Number.isInteger(merged.wallLoops) &&
+    merged.wallLoops >= 1 &&
+    merged.wallLoops <= 6 &&
+    typeof merged.supports === 'boolean' &&
+    ['skirt', 'brim', 'none'].includes(merged.adhesion);
+  return ok ? merged : { ...DEFAULT_SLICE_CHOICES };
+}
+
+export type SliceStatus = 'idle' | 'running' | 'done' | 'error';
+
+/** A G-code or .gcode.3mf file opened for preview; figures come from its own header. */
+export interface ImportedGcode {
+  fileName: string;
+  generator: string | null;
+  printSeconds: number | null;
+  totalSeconds: number | null;
+  filamentGrams: number | null;
+  filamentMm: number | null;
+  layers: number;
+  maxZ: number;
+}
+
+/** True for files the G-code preview opens instead of the model loaders. */
+export function isGcodeFile(name: string): boolean {
+  return /\.gcode(\.3mf)?$/i.test(name);
+}
+
+export interface SliceState {
+  choices: SliceChoices;
+  status: SliceStatus;
+  stage: SliceStage | null;
+  summary: SliceSummary | null;
+  /** A print file opened for preview, rather than sliced here. */
+  imported: ImportedGcode | null;
+  /** The `.gcode.3mf`, present only when pre-flight passed. */
+  archive: Uint8Array | null;
+  /** Nozzle height of each sliced layer. */
+  layerZ: number[];
+  /** Toolpath features present, for the legend. */
+  features: string[];
+  error: string;
+}
 
 export interface SectionState extends ClipState {
   on: boolean;
@@ -225,6 +300,9 @@ interface ViewerState {
   filament: string;
   paintAuthored: boolean;
   overhangDeg: number;
+  slice: SliceState;
+  /** 1-based layer shown in the toolpath preview. */
+  toolpathLayer: number;
 
   section: SectionState;
   layerAt: number;
@@ -284,6 +362,13 @@ interface ViewerState {
   setBed(id: string): void;
   setFilament(hex: string, paintAuthored?: boolean): void;
   setOverhangDeg(degrees: number): void;
+  setSliceChoices(patch: Partial<SliceChoices>): void;
+  sliceNow(): Promise<void>;
+  cancelSlice(): void;
+  downloadSlice(): void;
+  setToolpathLayer(layer: number): void;
+  /** Opens a .gcode or .gcode.3mf file in Preview, in place of the plate. */
+  openGcodeFile(file: File): Promise<void>;
 
   setSection(patch: Partial<SectionState>): void;
   setLayerAt(at: number): void;
@@ -334,10 +419,46 @@ let busy = false;
 
 export const useViewer = create<ViewerState>((set, get) => {
   let layerContourWarningShown = false;
+  let sliceJob: SliceJob | null = null;
+  /** Toolpaths of the current slice; large, so kept out of the store. */
+  let slicePreview: PreviewData | null = null;
+  let previewShown = false;
+
+  const idleSlice = (): Partial<SliceState> => ({
+    status: 'idle',
+    stage: null,
+    summary: null,
+    imported: null,
+    archive: null,
+    layerZ: [],
+    features: [],
+    error: '',
+  });
+
+  /** Any change to what is on the plate makes a finished slice stale. */
+  const invalidateSlice = () => {
+    const { slice } = get();
+    if (slice.status === 'idle') return;
+    sliceJob?.cancel();
+    sliceJob = null;
+    slicePreview = null;
+    set({ slice: { ...slice, ...idleSlice() } });
+  };
 
   const persist = () => {
-    const { display, unit, sidebarOpen, bedId, filament, paintAuthored, overhangDeg, layerHeight, keepRecent } = get();
-    writePrefs({ display, unit, sidebarOpen, bedId, filament, paintAuthored, overhangDeg, layerHeight, keepRecent });
+    const { display, unit, sidebarOpen, bedId, filament, paintAuthored, overhangDeg, layerHeight, slice, keepRecent } = get();
+    writePrefs({
+      display,
+      unit,
+      sidebarOpen,
+      bedId,
+      filament,
+      paintAuthored,
+      overhangDeg,
+      layerHeight,
+      slice: slice.choices,
+      keepRecent,
+    });
   };
 
   /** The plate under the models, and what they cover together. */
@@ -345,6 +466,7 @@ export const useViewer = create<ViewerState>((set, get) => {
     const { engine, bedId } = get();
     if (!engine) return;
     set({ plate: engine.setPlate(bedById(bedId).size), scene: engine.plateExtent() });
+    invalidateSlice();
   };
 
   /**
@@ -353,12 +475,25 @@ export const useViewer = create<ViewerState>((set, get) => {
    * switching tab never leaves the other tab's cut in place.
    */
   const syncView = () => {
-    const { engine, workspace, section, layerAt, layerHeight, scene, display, overhangDeg } = get();
+    const { engine, workspace, section, layerAt, layerHeight, scene, display, overhangDeg, toolpathLayer } = get();
     if (!engine) return;
     const preview = workspace === 'preview';
-    const previewAt = preview
-      ? fractionAtLayer(layerAtFraction(layerAt, scene.y, layerHeight), scene.y, layerHeight)
-      : null;
+    // A finished slice replaces the models in Preview with its toolpaths.
+    const showToolpaths = preview && slicePreview !== null;
+    if (showToolpaths !== previewShown) {
+      engine.setToolpathPreview(showToolpaths ? slicePreview : null);
+      previewShown = showToolpaths;
+    }
+    if (showToolpaths) {
+      engine.setClip(null);
+      engine.setLayerPreview(null);
+      engine.setToolpathLayer(toolpathLayer);
+      engine.setOverhang(false, overhangDeg);
+      return;
+    }
+    const selectedLayer = preview ? layerAtFraction(layerAt, scene.y, layerHeight) : null;
+    const previewAt =
+      selectedLayer === null ? null : fractionAtLayer(selectedLayer, scene.y, layerHeight);
     const clip: ClipState | null = preview
       ? { axis: 'y', at: previewAt ?? 1, flip: false }
       : section.on
@@ -670,6 +805,18 @@ export const useViewer = create<ViewerState>((set, get) => {
     filament: saved.filament ?? FILAMENTS[0].hex,
     paintAuthored: saved.paintAuthored ?? false,
     overhangDeg: saved.overhangDeg ?? OVERHANG_DEFAULT,
+    slice: {
+      choices: validChoices(saved.slice),
+      status: 'idle',
+      stage: null,
+      summary: null,
+      imported: null,
+      archive: null,
+      layerZ: [],
+      features: [],
+      error: '',
+    },
+    toolpathLayer: 1,
 
     section: { on: false, axis: 'z', at: 0.5, flip: false },
     layerAt: 1,
@@ -737,6 +884,25 @@ export const useViewer = create<ViewerState>((set, get) => {
             });
             return;
           }
+        }
+
+        // Print files open in the G-code preview rather than the model loaders.
+        let gcode = pool.find((file) => isGcodeFile(file.name));
+        // A plate-sliced 3MF may be named plain ".3mf"; its plate G-code gives it away.
+        for (const file of pool) {
+          if (gcode) break;
+          if (/\.3mf$/i.test(file.name) && slicedPlates(new Uint8Array(await file.arrayBuffer())).length) gcode = file;
+        }
+        if (gcode) {
+          if (pool.length > 1) {
+            get().toast({
+              tone: 'info',
+              title: `Previewing ${gcode.name} only`,
+              text: 'A print file opens on its own. Open models separately to slice them.',
+            });
+          }
+          await get().openGcodeFile(gcode);
+          return;
         }
 
         const { models, companions } = sortIntake(pool);
@@ -1124,6 +1290,201 @@ export const useViewer = create<ViewerState>((set, get) => {
       persist();
       syncView();
       scheduleOverhang();
+    },
+
+    setSliceChoices(patch) {
+      const { slice } = get();
+      const choices = validChoices({ ...slice.choices, ...patch });
+      invalidateSlice();
+      set({
+        slice: { ...get().slice, choices },
+        layerHeight: PROCESS_LAYER_HEIGHT[choices.processId] ?? get().layerHeight,
+      });
+      persist();
+      syncView();
+    },
+
+    async sliceNow() {
+      const { engine, slice } = get();
+      if (!engine || slice.status === 'running') return;
+      let mesh: { triangles: Float32Array; heightMm: number };
+      try {
+        mesh = engine.collectPrintMesh();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The plate cannot be sliced.';
+        set({ slice: { ...slice, ...idleSlice(), status: 'error', error: message } });
+        get().toast({ tone: 'error', title: 'Cannot slice this plate', text: message });
+        return;
+      }
+      slicePreview = null;
+      set({ slice: { ...slice, ...idleSlice(), status: 'running', stage: 'profiles' } });
+      syncView();
+      const { models, filament } = get();
+      const colour = models.find((entry) => entry.visible)?.colour ?? filament;
+      const version = document.querySelector<HTMLMetaElement>('meta[name="caliper-build"]')?.content ?? 'dev';
+      const job = startSlice(
+        {
+          triangles: mesh.triangles,
+          heightMm: mesh.heightMm,
+          choices: slice.choices,
+          filamentColour: /^#[0-9a-f]{6}$/i.test(colour) ? colour.toUpperCase() : '#00AE42',
+          application: `Caliper-${version}`,
+          objectName: models.find((entry) => entry.visible)?.name ?? 'plate',
+        },
+        (stage) => {
+          if (sliceJob === job) set({ slice: { ...get().slice, stage } });
+        },
+      );
+      sliceJob = job;
+      try {
+        const result = await job.promise;
+        if (sliceJob !== job) return;
+        sliceJob = null;
+        slicePreview = result.preview;
+        const layerZ = Array.from(result.preview.layerZ);
+        set({
+          slice: {
+            ...get().slice,
+            status: 'done',
+            stage: null,
+            summary: result.summary,
+            archive: result.archive,
+            layerZ,
+            features: result.preview.features,
+            error: '',
+          },
+          toolpathLayer: layerZ.length,
+          workspace: 'preview',
+        });
+        syncView();
+        if (!result.summary.preflight.ok) {
+          get().toast({
+            tone: 'error',
+            title: 'Pre-flight check failed',
+            text: 'The sliced file did not pass the safety checks, so it cannot be exported. See the checklist.',
+          });
+        }
+      } catch (error) {
+        if (sliceJob !== job) return;
+        sliceJob = null;
+        const message = error instanceof Error ? error.message : 'Slicing failed.';
+        set({ slice: { ...get().slice, ...idleSlice(), status: 'error', error: message } });
+        get().toast({ tone: 'error', title: 'Slicing failed', text: message });
+      }
+    },
+
+    cancelSlice() {
+      if (!sliceJob) return;
+      sliceJob.cancel();
+      sliceJob = null;
+      set({ slice: { ...get().slice, ...idleSlice() } });
+    },
+
+    downloadSlice() {
+      const { slice, model } = get();
+      if (slice.status !== 'done' || !slice.archive || !slice.summary?.preflight.ok) return;
+      const base = (model?.name ?? 'plate').replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'plate';
+      const blob = new Blob([slice.archive as Uint8Array<ArrayBuffer>], { type: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${base}_P1S.gcode.3mf`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+    },
+
+    async openGcodeFile(file) {
+      const { engine } = get();
+      if (!engine) return;
+      sliceJob?.cancel();
+      sliceJob = null;
+      set({ status: 'loading', progress: null, progressNote: `Reading ${file.name}` });
+      try {
+        let text: string;
+        if (/\.3mf$/i.test(file.name)) {
+          const entries = unzipSync(new Uint8Array(await file.arrayBuffer()), {
+            filter: (entry) => /^Metadata\/plate_\d+\.gcode$/.test(entry.name),
+          });
+          const plates = Object.keys(entries).sort();
+          if (!plates.length) throw new Error('This 3MF has no sliced plate inside. Open it as a model instead.');
+          text = strFromU8(entries[plates[0]]);
+          if (plates.length > 1) {
+            get().toast({ tone: 'info', title: `Showing plate 1 of ${plates.length}`, text: 'Caliper previews one plate at a time.' });
+          }
+        } else {
+          text = await file.text();
+        }
+        set({ progressNote: 'Reading toolpaths' });
+        const parsed = parseGcode(text);
+
+        // Bake feature colours per vertex, as the slicing worker does.
+        const colors = new Float32Array(parsed.positions.length);
+        const rgb = parsed.features.map((feature) => featureRgb(feature));
+        for (let segment = 0; segment < parsed.segmentFeatures.length; segment++) {
+          const [r, g, b] = rgb[parsed.segmentFeatures[segment]];
+          colors.set([r, g, b, r, g, b], segment * 6);
+        }
+        const { min, max } = parsed.bounds;
+        const extent = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+
+        const models = get().models;
+        if (models.length) engine.clearModel();
+        engine.prepareToolpathPlate([256, 256, 256], extent);
+        slicePreview = {
+          positions: parsed.positions,
+          colors,
+          layerEnds: parsed.layerEnds,
+          layerZ: parsed.layerZ,
+          features: parsed.features,
+        };
+        previewShown = false;
+        const layerZ = Array.from(parsed.layerZ);
+        set({
+          models: [],
+          model: null,
+          parts: [],
+          status: 'ready',
+          progress: null,
+          progressNote: '',
+          selection: null,
+          workspace: 'preview',
+          slice: {
+            ...get().slice,
+            ...idleSlice(),
+            status: 'done',
+            imported: {
+              fileName: file.name,
+              generator: parsed.header.generator,
+              printSeconds: parsed.header.printSeconds,
+              totalSeconds: parsed.header.totalSeconds,
+              filamentGrams: parsed.header.filamentGrams,
+              filamentMm: parsed.header.filamentMm,
+              layers: layerZ.length,
+              maxZ: layerZ[layerZ.length - 1] ?? 0,
+            },
+            layerZ,
+            features: parsed.features,
+          },
+          toolpathLayer: layerZ.length,
+        });
+        syncView();
+      } catch (error) {
+        set({ status: get().models.length ? 'ready' : 'idle', progress: null, progressNote: '' });
+        get().toast({
+          tone: 'error',
+          title: `Could not preview ${file.name}`,
+          text: error instanceof Error ? error.message : 'The print file could not be read.',
+        });
+      }
+    },
+
+    setToolpathLayer(layer) {
+      const total = get().slice.layerZ.length;
+      if (!total) return;
+      set({ toolpathLayer: Math.min(total, Math.max(1, Math.round(layer))) });
+      syncView();
     },
 
     setSection(patch) {

@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react';
-import { useViewer, FILAMENTS, LAYER_HEIGHTS, useMm, type ModelEntry } from '@/store/useViewer';
+import { useState } from 'react';
+import { useViewer, FILAMENTS, useMm, type ModelEntry } from '@/store/useViewer';
 import { colourName } from '@/lib/colours';
 import { area, bytes, count, degrees, dim, grams, ms, shortName, volume } from '@/lib/format';
 import { PIPELINE_COPY } from '@/lib/formats';
 import { BEDS, MM_PER, bedById, fitOnBed } from '@/lib/printers';
-import { generateLayerPlan, layerIndexAtFraction } from '@/lib/slicing';
 import { MAX_MODELS } from '@/lib/intake';
 import type { Measurement, SourceUnit, UnitSystem } from '@/types';
 import {
@@ -19,7 +18,6 @@ import {
   IconEyeOff,
   IconFile,
   IconObjects,
-  IconPreview,
   IconPlate,
   IconPrinter,
   IconSize,
@@ -28,6 +26,7 @@ import {
   IconUndo,
 } from './Icons';
 import { ObjectList } from './ObjectList';
+import { PrintSettingsSection, PrintTicket, SliceBar } from './PrintPanel';
 import { Field, SideSection, Switch } from './ui';
 
 const UNITS: UnitSystem[] = ['mm', 'cm', 'm', 'in'];
@@ -526,46 +525,6 @@ function FileSection() {
   );
 }
 
-/* ---------------------------------------------------------------- preview */
-
-function LayerSection() {
-  const layerHeight = useViewer((s) => s.layerHeight);
-  const setLayerHeight = useViewer((s) => s.setLayerHeight);
-  const layerAt = useViewer((s) => s.layerAt);
-  const model = useViewer((s) => s.model);
-  const unit = useViewer((s) => s.unit);
-  // Layers run up through everything on the plate, as a slicer's do.
-  const heightMm = useViewer((s) => s.scene.y);
-  const layers = useMemo(() => generateLayerPlan(heightMm, { layerHeight }), [heightMm, layerHeight]);
-  if (!model) return null;
-
-  const total = layers.length;
-  const layer = layerIndexAtFraction(layerAt, layers, heightMm);
-
-  return (
-    <SideSection icon={<IconPreview size={16} />} title="Layers">
-      <label className="control control-row">
-        <span className="control-label">Layer height</span>
-        <select
-          className="select"
-          value={layerHeight}
-          onChange={(event) => setLayerHeight(Number(event.target.value))}
-        >
-          {LAYER_HEIGHTS.map((h) => (
-            <option key={h} value={h}>
-              {h.toFixed(2)} mm
-            </option>
-          ))}
-        </select>
-      </label>
-      <Field label="Layers in the part" value={count(total)} />
-      <Field label="Cut at layer" value={`${count(layer)} of ${count(total)}`} />
-      <Field label="Cut height" value={dim(layers[layer - 1]?.sliceZ ?? 0, unit)} />
-      <p className="note">Drag the slider beside the plate to step through the part from the plate up.</p>
-    </SideSection>
-  );
-}
-
 function CheckupSection() {
   const report = useViewer((s) => s.report);
   const pending = useViewer((s) => s.reportPending);
@@ -657,32 +616,36 @@ export function Sidebar({ onAdd }: { onAdd: () => void }) {
 
   return (
     <aside className="sidebar" aria-label="Model settings">
-      <PrinterSection />
-      {workspace !== 'preview' && <PlateSection onAdd={onAdd} />}
-      {workspace === 'preview' ? (
-        <>
-          <LayerSection />
-          <CheckupSection />
-          <SizeSection />
-        </>
-      ) : (
-        <>
-          <FilamentSection />
-          {model && (
-            <SideSection
-              icon={<IconObjects />}
-              title="Objects"
-              aside={<span className="side-count num">{parts.length.toLocaleString()}</span>}
-            >
-              <ObjectList />
-            </SideSection>
-          )}
-          <SizeSection />
-          <MeasureSection />
-          <FileSection />
-          {!model && <p className="side-empty">Open a model and its size, parts and printability land here.</p>}
-        </>
-      )}
+      <div className="sidebar-scroll">
+        {workspace === 'preview' ? (
+          <>
+            <PrintTicket />
+            <CheckupSection />
+          </>
+        ) : (
+          <>
+            <PrintSettingsSection />
+            <PlateSection onAdd={onAdd} />
+            {model && (
+              <SideSection
+                icon={<IconObjects />}
+                title="Objects"
+                aside={<span className="side-count num">{parts.length.toLocaleString()}</span>}
+                defaultOpen={false}
+              >
+                <ObjectList />
+              </SideSection>
+            )}
+            <SizeSection />
+            <PrinterSection />
+            <FilamentSection />
+            <MeasureSection />
+            <FileSection />
+            {!model && <p className="side-empty">Open a model to set up the print.</p>}
+          </>
+        )}
+      </div>
+      <SliceBar />
     </aside>
   );
 }

@@ -42,7 +42,7 @@ Caliper is an independent project and is not affiliated with or endorsed by Bamb
 | **Printability** | Closed-surface check (open-edge count), volume, solid-PLA weight, surface area and overhang area, each computed from the triangles. |
 | **Printer plates** | Bambu Lab X1/P1/A1 (256 mm), A1 mini (180 mm), Prusa MK4 and Creality Ender-3 beds drawn at true size, with a fit check that allows a quarter turn. |
 | **View** | Perspective and orthographic cameras, shaded, wireframe, edges and surface-angle modes (each face coloured by the direction it points, as in GitHub's STL viewer), part labels, an orientation gizmo, Bambu's 0–7 view keys, and PNG export. |
-| **Objects** | Per-part visibility, isolate and search, windowed so a 10,000-part IFC model scrolls smoothly. |
+| **Objects** | Per-part visibility, isolate and search, windowed so a 10,000-part IFC model scrolls smoothly; multicolor Bambu/Orca 3MFs also allow per-object AMS assignment and live filament color previews. |
 | **App** | Installable PWA with window-controls overlay, OS file handlers, an app shortcut, and offline use from a build-generated service worker. |
 | **Themes** | Bambu Studio's dark and light palettes, with every text pair adjusted to clear WCAG AA. |
 

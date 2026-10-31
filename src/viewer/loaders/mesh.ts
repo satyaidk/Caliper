@@ -17,7 +17,7 @@ import { baseOf, extOf } from '@/lib/formats';
 import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
-import { applyBambu3mfColors } from './3mf-colors';
+import { applyBambu3mfColors, getBambu3mfFilamentColors } from './3mf-colors';
 import type { LoadContext, LoadResult } from '@/types';
 
 /**
@@ -155,7 +155,11 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
       const object = new ThreeMFLoader(manager).parse(data);
       applyBambu3mfColors(object, data);
       object.name = file.name;
-      return { object, hasAuthoredMaterials: true };
+      return {
+        object,
+        hasAuthoredMaterials: true,
+        filamentColors: getBambu3mfFilamentColors(object),
+      };
     }
 
     case 'amf': {

@@ -22,6 +22,11 @@ import { nearestRestingFace, restingFaces, type RestingFace } from './orient';
 import { sliceContours } from '@/lib/slicing';
 import { fitOnBed, niceStep } from '@/lib/printers';
 import { arrange, placeBeside, type Extent, type Footprint } from '@/lib/arrange';
+import {
+  bambuObjectFilamentIndex,
+  setBambuFilamentColor,
+  setBambuObjectFilamentColor,
+} from './loaders/3mf-colors';
 import type {
   ClipState,
   Dimensions,
@@ -908,6 +913,15 @@ export class Engine {
     this.applySurfaces();
   }
 
+  /** Changes one imported Bambu/Orca AMS slot without replacing other colors. */
+  setModelFilamentColor(id: number, paletteIndex: number, color: string): boolean {
+    const model = this.find(id);
+    if (!model) return false;
+    const changed = setBambuFilamentColor(model.root, paletteIndex, color);
+    if (changed) this.invalidate();
+    return changed;
+  }
+
   /**
    * Says how many millimetres one of a model's units is. With one model on the
    * plate the model keeps its size on screen and the grid rescales under it;
@@ -1569,7 +1583,23 @@ export class Engine {
       name: node.name || `Part ${i + 1}`,
       triangles: model.triangleCounts.get(node.id) ?? 0,
       visible: node.visible,
+      filamentIndex: bambuObjectFilamentIndex(node),
     }));
+  }
+
+  /** Reassigns a selected object-list part to one imported AMS slot. */
+  setPartFilamentColor(id: number, paletteIndex: number, color: string): boolean {
+    const model = this.active;
+    const part = model?.parts.find((node) => node.id === id);
+    if (!model || !part) return false;
+    const changed = setBambuObjectFilamentColor(model.root, part.id, paletteIndex, color);
+    if (changed) {
+      if ((part as THREE.Mesh).isMesh) part.userData.caliperBase = (part as THREE.Mesh).material;
+      this.hooks.onParts(this.partList());
+      this.applySurfaces();
+      this.invalidate();
+    }
+    return changed;
   }
 
   private afterVisibility() {

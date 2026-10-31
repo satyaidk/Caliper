@@ -85,12 +85,22 @@ export interface PartInfo {
   name: string;
   triangles: number;
   visible: boolean;
+  /** One imported AMS slot, or null when the part contains multiple colors. */
+  filamentIndex?: number | null;
+}
+
+/** An editable filament slot imported from a multicolor 3MF project. */
+export interface FilamentColor {
+  index: number;
+  color: string;
 }
 
 export interface LoadResult {
   object: THREE.Object3D;
   /** Loaders that carry their own colours ask us not to override materials. */
   hasAuthoredMaterials: boolean;
+  /** AMS slots used by a Bambu/Orca 3MF model, when present. */
+  filamentColors?: FilamentColor[];
 }
 
 export interface LoadContext {

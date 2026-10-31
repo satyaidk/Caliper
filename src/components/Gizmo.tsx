@@ -14,8 +14,9 @@ import type { ViewPreset } from '@/types';
  * the same thing here as they do in the size rows and the status bar.
  */
 
-const RADIUS = 28;
-const CENTRE = 40;
+const RADIUS = 30;
+const CENTRE = 44;
+const SIZE = CENTRE * 2;
 
 interface Arm {
   preset: ViewPreset;
@@ -23,17 +24,21 @@ interface Arm {
   vector: THREE.Vector3;
   label: string;
   title: string;
-  /** The far end of each pair is an open ring, so the pair reads as one axis. */
+  /**
+   * Only the positive end has a spoke and a filled, labelled cap. The negative
+   * end is a tinted dot that names itself on hover, so the three spokes read as
+   * a triad at a glance instead of six crossing lines.
+   */
   positive: boolean;
 }
 
 const ARMS: Arm[] = [
   { preset: 'right', axis: 'x', vector: new THREE.Vector3(1, 0, 0), label: 'X', title: 'Look from the right', positive: true },
-  { preset: 'left', axis: 'x', vector: new THREE.Vector3(-1, 0, 0), label: '', title: 'Look from the left', positive: false },
+  { preset: 'left', axis: 'x', vector: new THREE.Vector3(-1, 0, 0), label: '−X', title: 'Look from the left', positive: false },
   { preset: 'top', axis: 'y', vector: new THREE.Vector3(0, 1, 0), label: 'Y', title: 'Look from the top', positive: true },
-  { preset: 'bottom', axis: 'y', vector: new THREE.Vector3(0, -1, 0), label: '', title: 'Look from below', positive: false },
+  { preset: 'bottom', axis: 'y', vector: new THREE.Vector3(0, -1, 0), label: '−Y', title: 'Look from below', positive: false },
   { preset: 'front', axis: 'z', vector: new THREE.Vector3(0, 0, 1), label: 'Z', title: 'Look at the front', positive: true },
-  { preset: 'rear', axis: 'z', vector: new THREE.Vector3(0, 0, -1), label: '', title: 'Look at the back', positive: false },
+  { preset: 'rear', axis: 'z', vector: new THREE.Vector3(0, 0, -1), label: '−Z', title: 'Look at the back', positive: false },
 ];
 
 const AXES = ['x', 'y', 'z'] as const;
@@ -51,6 +56,7 @@ export function Gizmo() {
     const inverse = new THREE.Quaternion();
     const projected = new THREE.Vector3();
     let raf = 0;
+    let order = '';
 
     const tick = () => {
       raf = requestAnimationFrame(tick);
@@ -71,25 +77,31 @@ export function Gizmo() {
         const y = CENTRE - projected.y * RADIUS;
 
         node.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
-        // z runs from -1 (behind the model) to 1 (pointing at the viewer).
-        node.style.opacity = String(0.4 + (projected.z + 1) * 0.3);
+        // z runs from -1 (behind the model) to 1 (pointing at the viewer). The
+        // floor stays high: a cap faded to 40% looked washed out, not distant.
+        const depth = String(0.62 + (projected.z + 1) * 0.19);
+        node.style.opacity = depth;
         depths.push({ index, z: projected.z });
 
-        // The positive arm of each pair also owns that axis's spoke.
+        // The positive arm of each pair owns that axis's spoke, out from the centre.
         if (arm.positive) {
           const line = lineRefs.current[AXES.indexOf(arm.axis)];
           if (line) {
-            line.setAttribute('x1', (CENTRE - projected.x * RADIUS).toFixed(2));
-            line.setAttribute('y1', (CENTRE + projected.y * RADIUS).toFixed(2));
             line.setAttribute('x2', x.toFixed(2));
             line.setAttribute('y2', y.toFixed(2));
+            line.style.opacity = depth;
           }
         }
       });
 
       // SVG paints in document order, so the arm nearest the viewer has to be
       // last in the DOM or it ends up buried under the one behind the model.
+      // Moving a node every frame also drops its :hover, so reorder only when
+      // the order actually changes.
       depths.sort((a, b) => a.z - b.z);
+      const next = depths.map((d) => d.index).join();
+      if (next === order) return;
+      order = next;
       for (const { index } of depths) {
         const node = armRefs.current[index];
         if (node) stack.appendChild(node);
@@ -102,8 +114,8 @@ export function Gizmo() {
 
   return (
     <div className="gizmo" role="group" aria-label="Camera orientation">
-      <svg viewBox="0 0 80 80" width="80" height="80">
-        <circle className="gizmo-dial" cx={CENTRE} cy={CENTRE} r={RADIUS + 8} />
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE}>
+        <circle className="gizmo-dial" cx={CENTRE} cy={CENTRE} r={RADIUS + 11} />
         {AXES.map((axis, index) => (
           <line
             key={axis}
@@ -118,6 +130,7 @@ export function Gizmo() {
             y2={CENTRE}
           />
         ))}
+        <circle className="gizmo-hub" cx={CENTRE} cy={CENTRE} r="2" />
         <g ref={stackRef}>
           {ARMS.map((arm, index) => (
             <g
@@ -140,12 +153,10 @@ export function Gizmo() {
               }}
             >
               <title>{arm.title}</title>
-              <circle className="gizmo-cap" r="8" />
-              {arm.label && (
-                <text className="gizmo-label" dy="3.2">
-                  {arm.label}
-                </text>
-              )}
+              <circle className="gizmo-cap" r="9" />
+              <text className="gizmo-label" dy="0.35em">
+                {arm.label}
+              </text>
             </g>
           ))}
         </g>

@@ -31,6 +31,13 @@ plan in [slicer-logic.md](slicer-logic.md#224-a-phased-plan).
   whole-face `paint_color`/`mmu_segmentation` assignments render with the exact
   palette colors. Standard ThreeMFLoader colors remain untouched. Encoded
   within-face paint subdivision is not yet tessellated by Caliper.
+- Added editable AMS preview colors for imported multicolor 3MFs. The Filament
+  panel offers named preset swatches and a custom color picker per used slot;
+  the object list can assign an individual object to one of those slots. Object
+  assignment is isolated even when Three.js geometry or materials are shared.
+  The controls use expandable slot rows and responsive two-line object rows.
+  These edits affect only the in-memory preview and do not rewrite or export the
+  3MF. Intricate within-triangle paint subdivision is still unsupported.
 
 ## Important link limitation
 
@@ -76,7 +83,7 @@ bundle Bambu Studio code: it is AGPL-3.0, while Caliper remains MIT.
 
 ## Verification run
 
-- `npm test` — passed (171 tests).
+- `npm test` — passed (174 tests).
 - `npm run build` — passed.
 - `npm run contrast` — passed (60 text pairs).
 - `git diff --check` — passed.

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useViewer, FILAMENTS, LAYER_HEIGHTS, useMm, type ModelEntry } from '@/store/useViewer';
+import { colourName } from '@/lib/colours';
 import { area, bytes, count, degrees, dim, grams, ms, shortName, volume } from '@/lib/format';
 import { PIPELINE_COPY } from '@/lib/formats';
 import { BEDS, MM_PER, bedById, fitOnBed } from '@/lib/printers';
@@ -117,6 +118,7 @@ function FilamentSection() {
   const model = useViewer((s) => s.model);
   const several = useViewer((s) => s.models.length > 1);
   const setFilament = useViewer((s) => s.setFilament);
+  const setModelFilamentColor = useViewer((s) => s.setModelFilamentColor);
   // The swatches colour the active model; with nothing open they choose the
   // colour the next model starts in.
   const filament = model?.colour ?? defaultColour;
@@ -154,6 +156,49 @@ function FilamentSection() {
           />
         </label>
       </div>
+      {model && model.filamentColors.length > 1 && (
+        <div className="ams-colors" aria-label="Imported AMS filament colors">
+          <p className="note">
+            Choose a preset for each AMS slot, then assign slots to objects below. Preview changes do not edit the 3MF.
+          </p>
+          {model.filamentColors.map((slot) => (
+            <details className="ams-color-slot" key={slot.index}>
+              <summary className="ams-color-row">
+                <span className="ams-color-label">
+                  <i className="ams-color-dot" style={{ backgroundColor: slot.color }} aria-hidden />
+                  AMS {slot.index + 1}
+                </span>
+                <span className="ams-color-current">{colourName(slot.color)}</span>
+                <span className="ams-color-action">Change</span>
+              </summary>
+              <div className="ams-color-options" role="radiogroup" aria-label={`Suggested colors for AMS ${slot.index + 1}`}>
+                {FILAMENTS.map((filament) => (
+                  <button
+                    type="button"
+                    key={filament.hex}
+                    className="ams-color-swatch"
+                    role="radio"
+                    aria-checked={filament.hex.toLowerCase() === slot.color.toLowerCase()}
+                    aria-label={`${filament.name} for AMS ${slot.index + 1}`}
+                    title={filament.name}
+                    style={{ backgroundColor: filament.hex }}
+                    onClick={() => setModelFilamentColor(model.id, slot.index, filament.hex)}
+                  />
+                ))}
+                <label className="ams-color-custom" title="Choose a custom color">
+                  <input
+                    type="color"
+                    value={slot.color}
+                    aria-label={`Choose a custom color for AMS ${slot.index + 1}`}
+                    onChange={(event) => setModelFilamentColor(model.id, slot.index, event.target.value)}
+                  />
+                  <span aria-hidden>+</span>
+                </label>
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
       {authored && (
         <>
           <Switch

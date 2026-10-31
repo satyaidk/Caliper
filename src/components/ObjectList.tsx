@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useViewer } from '@/store/useViewer';
 import { compact } from '@/lib/format';
+import { colourName } from '@/lib/colours';
 import { IconEye, IconEyeOff, IconIsolate, IconSearch } from './Icons';
 
 /** Rows are a fixed height so the list can draw only the ones on screen. */
-const ROW = 30;
 const VISIBLE_ROWS = 10;
 const OVERSCAN = 6;
 
@@ -23,6 +23,9 @@ export function ObjectList() {
   const isolate = useViewer((s) => s.isolatePart);
   const selectPart = useViewer((s) => s.selectPart);
   const frameSelection = useViewer((s) => s.frameSelection);
+  const filamentColors = useViewer((s) => s.model?.filamentColors ?? []);
+  const setPartFilamentColor = useViewer((s) => s.setPartFilamentColor);
+  const rowHeight = filamentColors.length > 1 ? 54 : 30;
   const [query, setQuery] = useState('');
   const [scroll, setScroll] = useState(0);
 
@@ -33,9 +36,9 @@ export function ObjectList() {
 
   const hidden = parts.filter((p) => !p.visible).length;
   const isolated = hidden > 0 && hidden === parts.length - 1;
-  const start = Math.max(0, Math.floor(scroll / ROW) - OVERSCAN);
+  const start = Math.max(0, Math.floor(scroll / rowHeight) - OVERSCAN);
   const end = Math.min(shown.length, start + VISIBLE_ROWS + OVERSCAN * 2);
-  const height = Math.min(shown.length, VISIBLE_ROWS) * ROW;
+  const height = Math.min(shown.length, VISIBLE_ROWS) * rowHeight;
 
   return (
     <div className="objects">
@@ -64,7 +67,7 @@ export function ObjectList() {
           role="list"
           aria-label="Parts"
         >
-          <div style={{ height: shown.length * ROW, position: 'relative' }}>
+          <div style={{ height: shown.length * rowHeight, position: 'relative' }}>
             {shown.slice(start, end).map((part, i) => (
               <div
                 key={part.id}
@@ -72,7 +75,8 @@ export function ObjectList() {
                 className="obj-row"
                 data-selected={selection?.id === part.id}
                 data-hidden={!part.visible}
-                style={{ top: (start + i) * ROW, height: ROW }}
+                data-filament={filamentColors.length > 1}
+                style={{ top: (start + i) * rowHeight, height: rowHeight }}
               >
                 <button
                   type="button"
@@ -98,6 +102,32 @@ export function ObjectList() {
                 <span className="obj-tris num" title={`${part.triangles.toLocaleString()} triangles`}>
                   {compact(part.triangles)}
                 </span>
+                {filamentColors.length > 1 && (
+                  <label className="obj-filament-wrap">
+                    <span className="obj-filament-caption">Assign filament</span>
+                    <select
+                      className="obj-filament"
+                      value={part.filamentIndex === null ? 'mixed' : part.filamentIndex ?? ''}
+                      aria-label={`Filament color for ${part.name}`}
+                      onChange={(event) => {
+                        if (event.target.value && event.target.value !== 'mixed') {
+                          setPartFilamentColor(part.id, Number(event.target.value));
+                        }
+                      }}
+                    >
+                      {part.filamentIndex === null ? (
+                        <option value="mixed">Mixed colors</option>
+                      ) : (
+                        <option value="" disabled>Choose AMS color</option>
+                      )}
+                      {filamentColors.map((slot) => (
+                        <option key={slot.index} value={slot.index}>
+                          AMS {slot.index + 1} · {colourName(slot.color)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <button
                   type="button"
                   className="obj-solo"

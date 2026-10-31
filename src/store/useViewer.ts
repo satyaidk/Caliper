@@ -25,6 +25,7 @@ import {
 import type {
   Axis,
   ClipState,
+  FilamentColor,
   Measurement,
   MeasureTool,
   ModelInfo,
@@ -89,6 +90,7 @@ export interface ModelEntry extends ModelInfo {
   id: number;
   colour: string;
   paintAuthored: boolean;
+  filamentColors: FilamentColor[];
   sourceUnit: SourceUnit;
   visible: boolean;
   /** Footprint centre on the plate, millimetres. */
@@ -259,6 +261,8 @@ interface ViewerState {
   removeModel(id: number): void;
   setModelVisible(id: number, visible: boolean): void;
   setModelColour(id: number, hex: string, paintAuthored?: boolean): void;
+  setModelFilamentColor(id: number, paletteIndex: number, color: string): void;
+  setPartFilamentColor(id: number, paletteIndex: number): void;
   setModelPosition(id: number, position: [number, number]): void;
   nudgeModel(dxMm: number, dzMm: number): void;
   cycleModel(step: 1 | -1): void;
@@ -563,6 +567,7 @@ export const useViewer = create<ViewerState>((set, get) => {
         authored: object.hasAuthoredMaterials,
         colour,
         paintAuthored,
+        filamentColors: object.filamentColors ?? [],
         sourceUnit,
         visible: true,
         position: [0, 0],
@@ -885,6 +890,40 @@ export const useViewer = create<ViewerState>((set, get) => {
         );
       }
       persistPlate();
+    },
+
+    setModelFilamentColor(id, paletteIndex, color) {
+      const entry = get().models.find((m) => m.id === id);
+      const filament = entry?.filamentColors.find((slot) => slot.index === paletteIndex);
+      const engine = get().engine;
+      if (!entry || !filament || !engine || !/^#[\da-f]{6}$/i.test(color)) return;
+      if (entry.paintAuthored) engine.setModelColour(id, entry.colour, false);
+      if (!engine.setModelFilamentColor(id, paletteIndex, color)) return;
+
+      patchModel(id, {
+        paintAuthored: false,
+        filamentColors: entry.filamentColors.map((slot) =>
+          slot.index === paletteIndex ? { ...slot, color } : slot,
+        ),
+      });
+      if (entry.recentId) {
+        const recentId = entry.recentId;
+        window.clearTimeout(thumbTimers.get(id));
+        thumbTimers.set(id, window.setTimeout(() => {
+          thumbTimers.delete(id);
+          const thumb = get().engine?.thumbnail(id) ?? null;
+          if (thumb) void updateRecent(recentId, { thumb }).then(() => get().refreshRecent());
+        }, 500));
+      }
+    },
+
+    setPartFilamentColor(id, paletteIndex) {
+      const { engine, model } = get();
+      const filament = model?.filamentColors.find((slot) => slot.index === paletteIndex);
+      if (!engine || !model || !filament) return;
+      if (model.paintAuthored) engine.setModelColour(model.id, model.colour, false);
+      if (!engine.setPartFilamentColor(id, paletteIndex, filament.color)) return;
+      if (model.paintAuthored) patchModel(model.id, { paintAuthored: false });
     },
 
     setModelPosition(id, position) {

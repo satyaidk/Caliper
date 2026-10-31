@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { unzipSync } from 'fflate';
+import type { FilamentColor } from '@/types';
 
 interface ModelColorData {
   objectColor: number | null;
@@ -152,6 +153,7 @@ function parseBambuColorData(data: ArrayBuffer): BambuColorData | null {
 
 function paintObject(
   mesh: THREE.Mesh,
+  paletteIndex: number,
   paletteColor: string,
   replacedMaterials: Set<THREE.Material>,
 ): void {
@@ -159,6 +161,7 @@ function paintObject(
   const painted = materials.map((material) => {
     const colored = material.clone() as THREE.Material & { color?: THREE.Color };
     colored.color?.set(paletteColor);
+    colored.userData.caliperBambuFilamentIndex = paletteIndex;
     replacedMaterials.add(material);
     return colored;
   });
@@ -184,6 +187,8 @@ function paintTriangles(
   const geometry = originalGeometry.index ? originalGeometry.toNonIndexed() : originalGeometry.clone();
   const vertexCount = geometry.getAttribute('position').count;
   const vertexColors = new Float32Array(vertexCount * 3);
+  const filamentIndices = new Int16Array(vertexCount);
+  filamentIndices.fill(-1);
   const originalMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
   const fallbackMaterial = originalMaterials[0] as THREE.Material & { color?: THREE.Color };
   const fallback = inheritedColor !== null
@@ -192,6 +197,7 @@ function paintTriangles(
 
   for (let triangle = 0; triangle < triangleCount; triangle++) {
     const paletteIndex = colors[triangle] ?? inheritedColor;
+    filamentIndices.fill(paletteIndex ?? -1, triangle * 3, triangle * 3 + 3);
     const color = paletteIndex !== null && palette[paletteIndex]
       ? new THREE.Color(palette[paletteIndex])
       : fallback;
@@ -201,6 +207,7 @@ function paintTriangles(
   }
 
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertexColors, 3));
+  geometry.userData.caliperBambuFilamentIndices = filamentIndices;
   const materials = originalMaterials.map((material) => {
     const clone = material.clone() as THREE.Material & {
       color?: THREE.Color;
@@ -220,9 +227,13 @@ function paintTriangles(
 /** Apply Bambu's saved filament palette and whole-face paint to ThreeMFLoader output. */
 export function applyBambu3mfColors(root: THREE.Object3D, data: ArrayBuffer): boolean {
   const colors = parseBambuColorData(data);
-  if (!colors) return false;
+  if (!colors) {
+    root.userData.caliperBambuFilamentColors = [];
+    return false;
+  }
 
   let applied = false;
+  const usedColors = new Set<number>();
   const replacedGeometries = new Set<THREE.BufferGeometry>();
   const replacedMaterials = new Set<THREE.Material>();
   root.traverse((object) => {
@@ -240,12 +251,17 @@ export function applyBambu3mfColors(root: THREE.Object3D, data: ArrayBuffer): bo
       replacedMaterials,
     )) {
       applied = true;
+      for (const color of model.triangleColors) {
+        const index = color ?? inheritedColor;
+        if (index !== null) usedColors.add(index);
+      }
     } else if (
       inheritedColor !== null &&
       colors.palette[inheritedColor] &&
       !object.geometry.getAttribute('color')
     ) {
-      paintObject(object, colors.palette[inheritedColor], replacedMaterials);
+      paintObject(object, inheritedColor, colors.palette[inheritedColor], replacedMaterials);
+      usedColors.add(inheritedColor);
       applied = true;
     }
   });
@@ -266,5 +282,153 @@ export function applyBambu3mfColors(root: THREE.Object3D, data: ArrayBuffer): bo
     if (!liveMaterials.has(material)) material.dispose();
   }
 
+  root.userData.caliperBambuFilamentColors = [...usedColors]
+    .sort((a, b) => a - b)
+    .map((index) => ({ index, color: colors.palette[index] }));
   return applied;
+}
+
+export function getBambu3mfFilamentColors(root: THREE.Object3D): FilamentColor[] {
+  const colors = root.userData.caliperBambuFilamentColors as FilamentColor[] | undefined;
+  return Array.isArray(colors) ? colors : [];
+}
+
+/** Update every mesh paint assignment that uses one saved AMS palette slot. */
+export function setBambuFilamentColor(
+  root: THREE.Object3D,
+  paletteIndex: number,
+  hex: string,
+): boolean {
+  if (!Number.isSafeInteger(paletteIndex) || paletteIndex < 0 || !/^#[\da-f]{6}$/i.test(hex)) return false;
+
+  const color = new THREE.Color(hex);
+  let changed = false;
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+
+    const indices = object.geometry.userData.caliperBambuFilamentIndices as Int16Array | undefined;
+    const attribute = object.geometry.getAttribute('color');
+    if (indices && attribute && indices.length === attribute.count) {
+      let geometryChanged = false;
+      for (let vertex = 0; vertex < indices.length; vertex++) {
+        if (indices[vertex] === paletteIndex) {
+          attribute.setXYZ(vertex, color.r, color.g, color.b);
+          changed = true;
+          geometryChanged = true;
+        }
+      }
+      if (geometryChanged) attribute.needsUpdate = true;
+    }
+
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (material.userData.caliperBambuFilamentIndex !== paletteIndex) continue;
+      const colored = material as THREE.Material & { color?: THREE.Color };
+      if (colored.color) {
+        colored.color.set(hex);
+        changed = true;
+      }
+    }
+  });
+  return changed;
+}
+
+/** Reassigns all faces in one selected object to a single imported AMS slot. */
+export function setBambuObjectFilamentColor(
+  root: THREE.Object3D,
+  objectId: number,
+  paletteIndex: number,
+  hex: string,
+): boolean {
+  if (!Number.isSafeInteger(paletteIndex) || paletteIndex < 0 || !/^#[\da-f]{6}$/i.test(hex)) return false;
+  const target = root.getObjectById(objectId);
+  if (!(target instanceof THREE.Mesh)) return false;
+
+  const color = new THREE.Color(hex);
+  const sourceGeometry = target.geometry;
+  const sourceIndices = sourceGeometry.userData.caliperBambuFilamentIndices as Int16Array | undefined;
+  const sourceAttribute = sourceGeometry.getAttribute('color');
+  if (sourceIndices && sourceAttribute && sourceIndices.length === sourceAttribute.count) {
+    let shared = false;
+    root.traverse((node) => {
+      if (node !== target && (node as THREE.Mesh).isMesh && (node as THREE.Mesh).geometry === sourceGeometry) {
+        shared = true;
+      }
+    });
+    if (shared) {
+      const geometry = sourceGeometry.clone();
+      const indices = sourceIndices.slice();
+      geometry.userData = {
+        ...geometry.userData,
+        caliperBambuFilamentIndices: indices,
+      };
+      target.geometry = geometry;
+    }
+
+    const indices = target.geometry.userData.caliperBambuFilamentIndices as Int16Array;
+    const attribute = target.geometry.getAttribute('color');
+    indices.fill(paletteIndex);
+    for (let vertex = 0; vertex < indices.length; vertex++) {
+      attribute.setXYZ(vertex, color.r, color.g, color.b);
+    }
+    attribute.needsUpdate = true;
+    return true;
+  }
+
+  const sourceMaterials = Array.isArray(target.material) ? target.material : [target.material];
+  const sharedMaterials = new Set<THREE.Material>();
+  root.traverse((node) => {
+    if (node === target || !(node as THREE.Mesh).isMesh) return;
+    const mesh = node as THREE.Mesh;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      if (sourceMaterials.includes(material)) sharedMaterials.add(material);
+    }
+  });
+
+  const clones = new Map<THREE.Material, THREE.Material>();
+  const materials = sourceMaterials.map((material) => {
+    if (!sharedMaterials.has(material)) return material;
+    const existing = clones.get(material);
+    if (existing) return existing;
+    const clone = material.clone();
+    clones.set(material, clone);
+    return clone;
+  });
+  target.material = Array.isArray(target.material) ? materials : materials[0] ?? target.material;
+  let changed = false;
+  for (const material of new Set(materials)) {
+    const colored = material as THREE.Material & { color?: THREE.Color };
+    if (!colored.color) continue;
+    colored.color.set(hex);
+    material.userData.caliperBambuFilamentIndex = paletteIndex;
+    changed = true;
+  }
+  return changed;
+}
+
+/** Current one-slot assignment for an object-list row; null means mixed. */
+export function bambuObjectFilamentIndex(object: THREE.Object3D): number | null | undefined {
+  let found: number | null | undefined;
+  let mixed = false;
+  const readMesh = (node: THREE.Mesh) => {
+    const indices = node.geometry.userData.caliperBambuFilamentIndices as Int16Array | undefined;
+    if (indices?.length) {
+      for (const index of indices) {
+        if (index < 0) continue;
+        if (found === undefined) found = index;
+        else if (found !== index) mixed = true;
+      }
+    } else {
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of materials) {
+        const index = material.userData.caliperBambuFilamentIndex;
+        if (typeof index !== 'number') continue;
+        if (found === undefined) found = index;
+        else if (found !== index) mixed = true;
+      }
+    }
+  };
+  if (object instanceof THREE.Mesh) readMesh(object);
+  return mixed ? null : found;
 }

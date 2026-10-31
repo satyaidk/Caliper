@@ -8,7 +8,8 @@ const UNIT_FACTOR: Record<UnitSystem, number> = {
 };
 
 export function bytes(n: number): string {
-  if (n < 1024) return `${n} B`;
+  if (!Number.isFinite(n) || n < 0) return '0 B';
+  if (n < 1024) return `${Math.round(n)} B`;
   const units = ['KB', 'MB', 'GB'];
   let v = n / 1024;
   let i = 0;
@@ -34,6 +35,7 @@ export function compact(n: number): string {
  * millimetres and converted from there. The status strip says as much.
  */
 export function dim(value: number, unit: UnitSystem): string {
+  if (!Number.isFinite(value)) return `0 ${unit}`;
   const v = value * UNIT_FACTOR[unit];
   if (v === 0) return `0 ${unit}`;
   // Nudge off the boundary first: 25.4 mm converts to 0.99999… inches, and

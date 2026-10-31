@@ -4,12 +4,12 @@
 
 # Caliper
 
-**A 3D model viewer that works like your slicer.** Open 22 mesh, CAD and BIM file types in the browser, then measure, orient, section and preview them with Bambu Studio's tools and keys. Nothing is uploaded.
+**Slice and print for the Bambu Lab P1S, in the browser.** Open 22 mesh, CAD and BIM file types, measure and arrange them, then slice with Bambu's own P1S profiles and download a `.gcode.3mf` the printer reads from microSD. Every file is checked for safety before it can be downloaded. Nothing is uploaded.
 
 [![CI](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml/badge.svg)](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](tsconfig.json)
-[![Unit tests](https://img.shields.io/badge/unit%20tests-98%20passing-00ae42)](test/)
+[![Unit tests](https://img.shields.io/badge/unit%20tests-298%20passing-00ae42)](test/)
 [![Coverage](https://img.shields.io/badge/line%20coverage-67.9%25-00ae42)](#testing--quality)
 [![License: MIT](https://img.shields.io/badge/license-MIT-262e30)](LICENSE)
 
@@ -27,6 +27,8 @@ Version 2 rebuilds the interface after Bambu Studio, the slicer most people open
 
 Caliper is an independent project and is not affiliated with or endorsed by Bambu Lab.
 
+> **Safety.** Caliper's print files are new and have not yet been validated on printer hardware by this project. Supervise your first prints through the nozzle wipe, bed levelling and first layer, and stop the printer if anything looks wrong. See [Slicing and printing](#slicing-and-printing).
+
 ## Key features
 
 | Area | What it does |
@@ -38,7 +40,10 @@ Caliper is an independent project and is not affiliated with or endorsed by Bamb
 | **Measure** | Distance with an X/Y/Z split, diameter from three points on an arc, and angle from arm, corner, arm. Clicks snap to the nearest corner, edge midpoint or face centre within 14 screen pixels. |
 | **Orient** | Lay on face (click a face and it goes down onto the plate) and auto orient (stand the part on its largest flat face on the convex hull). The size readout follows the new orientation. |
 | **Look inside** | Section view along X, Y or Z with a hatched, stencil-filled cap so a cut reads as solid; assembly view that pulls parts apart along lines from the centre, ratio 1 to 3. |
-| **Preview** | A layer slider that cuts the part at any layer for the chosen layer height, with overhangs past a configurable limit painted red. |
+| **Slice for the P1S** | Bambu's own P1S 0.4 mm machine, process and filament profiles, fetched at slice time from a pinned Bambu Studio release. Choose filament (Bambu PLA Basic, Bambu PETG Basic, Generic PLA, Generic PETG), build plate, quality (0.16, 0.20 or 0.24 mm), infill, walls, skirt or brim, and grid supports. Slicing runs in a Web Worker. |
+| **Pre-flight safety check** | An independent pass re-reads the finished G-code and blocks the download unless every move is on the plate and out of the P1S's excluded corner, Z stays within 250 mm, flow and speeds stay within the filament and printer limits, the bed is levelled over the first layer, and Bambu's start and end sequence is unmodified. |
+| **G-code preview** | Open a `.gcode.3mf` or `.gcode` from Bambu Studio, OrcaSlicer, PrusaSlicer or Cura to inspect its toolpaths layer by layer, with its own time and filament figures. |
+| **Preview** | Before slicing, a layer slider cuts the part with overhangs painted red. After slicing, the real toolpaths replace the model, coloured by feature, with print time, filament weight and the safety checklist beside them. |
 | **Printability** | Closed-surface check (open-edge count), volume, solid-PLA weight, surface area and overhang area, each computed from the triangles. |
 | **Printer plates** | Bambu Lab X1/P1/A1 (256 mm), A1 mini (180 mm), Prusa MK4 and Creality Ender-3 beds drawn at true size, with a fit check that allows a quarter turn. |
 | **View** | Perspective and orthographic cameras, shaded, wireframe, edges and surface-angle modes (each face coloured by the direction it points, as in GitHub's STL viewer), part labels, an orientation gizmo, Bambu's 0–7 view keys, and PNG export. |
@@ -131,6 +136,16 @@ Only `http` and `https` URLs are followed, and the remote host must send permiss
 
 **Units.** STL and most mesh formats carry no unit, so their numbers are read as millimetres, as a slicer would. glTF is metres by specification and BIM geometry arrives in metres, so those default to metres. The **Size** section's *The file's numbers are in* menu changes it for the file in front of you, and a part under 1 mm across prompts the switch.
 
+### Slicing and printing
+
+1. Open a model and keep the plate on **Bambu Lab X1, P1 and A1 — 256 mm** (the P1S).
+2. In **Print settings**, pick the filament, the build plate fitted to the printer, the quality, infill, walls, first-layer adhesion and supports.
+3. Select **Slice plate**. The first slice downloads Bambu's profiles from GitHub; later slices reuse the copy stored in the browser.
+4. Preview shows the toolpaths, the print time and filament, and the safety checklist. **Download .gcode.3mf** unlocks only when every check passes.
+5. Copy the file to the P1S microSD card and start it from the printer screen. Check that the plate on the printer matches the one you chose.
+
+Limits: one filament (external spool, no AMS colour changes), the P1S with a 0.4 mm nozzle, classic walls, grid supports, no ironing.
+
 **Installing.** In Chrome or Edge, use the install button in the top bar or the address bar. Installed, Caliper opens model files from the file manager, keeps working offline, and uses its top bar as the window's title bar. On iPhone and iPad, use Safari's Share menu and *Add to Home Screen*.
 
 ### Keyboard
@@ -199,7 +214,7 @@ docs/                   design doc, ADRs, learning path, technical manual
 ## Testing & quality
 
 ```bash
-npm test             # 98 unit tests
+npm test             # 298 unit tests
 npm run coverage     # the same, with Node's built-in coverage report
 npm run typecheck    # tsc --noEmit, strict mode
 npm run contrast     # every text colour against every surface, both themes, WCAG AA
@@ -247,6 +262,9 @@ Each decision with lasting consequences has an ADR in [`docs/adr/`](docs/adr/):
 | [0003](docs/adr/0003-generated-service-worker.md) | Generate the service worker per build instead of using Workbox |
 | [0004](docs/adr/0004-stencil-section-caps.md) | Fill section cuts with a stencil-buffer cap |
 | [0005](docs/adr/0005-crease-normals-for-stl.md) | Shade STL files with crease-angle normals |
+| [0006](docs/adr/0006-multi-model-plate.md) | Put several models on one plate, with one of them active |
+| [0007](docs/adr/0007-slicer-core-layer-planning.md) | Start an independent slicer core with layer planning |
+| [0008](docs/adr/0008-p1s-print-files-from-fetched-profiles.md) | Print P1S files built from Bambu's profiles, fetched at slice time |
 
 ## Documentation
 
@@ -260,6 +278,9 @@ Each decision with lasting consequences has an ADR in [`docs/adr/`](docs/adr/):
 
 ## Roadmap
 
+- Validate print files on P1S hardware and against Bambu Studio reference files (see [slicer status](docs/slicer-development-status.md))
+- Arachne variable-width walls, tree supports, seam control and ironing
+- AMS multi-colour printing and more printers (A1, X1C)
 - Open recent files again from the Home tab, using the File System Access API where the browser supports it
 - Measure between features — plane to plane, edge to edge — rather than only between picked points
 - Complete 3MF paint import for within-face color subdivision in Bambu/Orca projects
@@ -274,7 +295,7 @@ Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the branc
 
 ## Security
 
-Model files never leave the device, and the production Content-Security-Policy limits scripts to this origin and the two CDNs that host the geometry kernels. To report a vulnerability, follow [SECURITY.md](SECURITY.md); please do not open a public issue.
+Model files never leave the device, and the production Content-Security-Policy limits scripts to this origin and the two CDNs that host the geometry kernels. Slicing fetches Bambu's public printer profiles from `raw.githubusercontent.com` at one pinned release; no model data is sent. To report a vulnerability, follow [SECURITY.md](SECURITY.md); please do not open a public issue.
 
 ## License
 

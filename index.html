@@ -68,10 +68,8 @@
         <span>Caliper</span>
       </a>
       <nav class="nav-links" aria-label="Sections">
-        <a href="#tools">Tools</a>
-        <a href="#preview">Preview</a>
-        <a href="#formats">Formats</a>
-        <a href="#install">App</a>
+        <a href="#how">How it works</a>
+        <a href="#install">Install</a>
         <a href="https://github.com/satyaidk/Caliper">Source</a>
       </nav>
       <div class="nav-end">
@@ -79,7 +77,7 @@
           <svg class="if-dark" width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="3.4" /><path d="M10 1.8V4M10 16v2.2M3.2 3.2l1.6 1.6M15.2 15.2l1.6 1.6M1.8 10H4M16 10h2.2M3.2 16.8l1.6-1.6M15.2 4.8l1.6-1.6" /></svg>
           <svg class="if-light" width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M16.4 12.4A7 7 0 0 1 7.6 3.6a7 7 0 1 0 8.8 8.8z" /></svg>
         </button>
-        <a class="nav-cta" href="/app/">Open the viewer</a>
+        <a class="nav-cta" href="/app/">Open Caliper</a>
       </div>
     </header>
 
@@ -87,14 +85,13 @@
       <!-- The hero is the product: the same window, the same engine, a real part. -->
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-side">
-          <h1 id="hero-title">A 3D model viewer that works like your slicer</h1>
+          <h1 id="hero-title">Slice and print for the Bambu Lab P1S, in your browser</h1>
           <p class="hero-lede">
-            Open STEP, STL, 3MF, IFC and <span data-count-rest>18</span> more file types in the browser. Measure them,
-            stand them on a face, cut them open and step through their layers, with Bambu Studio’s tools and keys.
-            The file never leaves your device.
+            Open STL, STEP, 3MF and <span data-count-rest>19</span> more file types, choose a filament and quality, and
+            download a print file for the P1S. The model never leaves your device.
           </p>
           <div class="hero-actions">
-            <a class="btn-site" data-variant="primary" href="/app/">Open the viewer</a>
+            <a class="btn-site" data-variant="primary" href="/app/">Open Caliper</a>
             <a class="btn-site" data-variant="ghost" href="/app/?sample">Try it on a sample part</a>
           </div>
 
@@ -132,55 +129,33 @@
         </div>
       </section>
 
-      <section class="band" id="tools" aria-labelledby="tools-title">
+      <section class="band" id="how" aria-labelledby="how-title">
         <div class="band-head">
-          <h2 id="tools-title">The slicer’s tools, for any file</h2>
-          <p>
-            The toolbar runs along the top of the canvas the way Bambu Studio’s does, and the keys are the same
-            ones. Each tool works on every format Caliper opens, from a phone scan to an IFC building.
-          </p>
+          <h2 id="how-title">From model to print in three steps</h2>
         </div>
-        <ul class="tools" id="tool-list"></ul>
+        <ol class="steps">
+          <li>
+            <b>Open</b>
+            <span>Drop a model onto the plate. Measure it, stand it on a face, or arrange several parts.</span>
+          </li>
+          <li>
+            <b>Slice</b>
+            <span>Pick the filament, plate and quality. Caliper uses Bambu&rsquo;s own P1S profiles and checks every move before it lets you download.</span>
+          </li>
+          <li>
+            <b>Print</b>
+            <span>Copy the .gcode.3mf to the printer&rsquo;s microSD card and start it from the screen. Watch the first layer.</span>
+          </li>
+        </ol>
+        <p class="steps-note">
+          Single filament on the P1S with a 0.4 mm nozzle. Caliper is new: supervise your first prints.
+        </p>
       </section>
 
-      <section class="band band-split" id="preview" aria-labelledby="preview-title">
-        <figure class="shot">
-          <img src="/screens/preview.png" alt="Caliper's Preview tab: a part cut at a layer, overhangs in red, and a printability check-up in the sidebar" loading="lazy" width="1280" height="800" />
-        </figure>
+      <section class="band" id="install" aria-labelledby="install-title">
         <div class="band-head">
-          <h2 id="preview-title">Preview before you slice</h2>
-          <p>
-            The Preview tab cuts the part at any layer, from the plate up, at the layer height you print with.
-            Faces past the overhang limit turn red, and the sidebar checks the surface:
-          </p>
-          <ul class="checks">
-            <li><b>Closed or open.</b> Every edge used by only one triangle is counted, so a hole in a scan shows up before the slicer guesses across it.</li>
-            <li><b>Volume and weight.</b> Exact for a closed surface, with the weight in solid PLA beside it.</li>
-            <li><b>Overhang area.</b> How much of the surface would print in mid-air at the limit you set.</li>
-            <li><b>Fits the plate.</b> Choose a printer and the plate is drawn at its real size, with the part at its real size on top.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="band" id="formats" aria-labelledby="formats-title">
-        <div class="band-head">
-          <h2 id="formats-title"><span data-count>22</span> file types, three ways in</h2>
-          <p>
-            Mesh files already contain triangles. CAD files hold exact surfaces that a WebAssembly geometry kernel
-            turns into triangles on your device. BIM files carry building elements, each one listed as a part.
-          </p>
-        </div>
-        <div class="site-formats" id="format-list"></div>
-      </section>
-
-      <section class="band band-split" id="install" aria-labelledby="install-title">
-        <div class="band-head">
-          <h2 id="install-title">Install it, then double-click a model</h2>
-          <p>
-            Caliper is a web app you can install. Installed, it opens in its own window with the top bar as its
-            title bar, it keeps working without a connection, and your operating system offers it for STL, STEP,
-            3MF and the other model files.
-          </p>
+          <h2 id="install-title">Install it as an app</h2>
+          <p>It opens in its own window, works offline once loaded, and opens model files from your desktop.</p>
           <div class="hero-actions">
             <button type="button" class="btn-site" data-variant="primary" id="install-button" hidden>Install Caliper</button>
             <a class="btn-site" data-variant="ghost" href="/app/">Use it in the browser</a>
@@ -190,24 +165,6 @@
             Share menu in Safari and choose Add to Home Screen.
           </p>
         </div>
-        <ul class="facts">
-          <li>
-            <b>Offline after the first visit</b>
-            <span>The app and every geometry kernel you have used are kept on the device.</span>
-          </li>
-          <li>
-            <b>Opens files from your desktop</b>
-            <span>Installed in Chrome or Edge, model files can be opened with Caliper from the file manager.</span>
-          </li>
-          <li>
-            <b>Nothing is uploaded</b>
-            <span>Files are read in the browser tab. There is no server to send them to and no account to make.</span>
-          </li>
-          <li>
-            <b>Works on a phone</b>
-            <span>The sidebar becomes a sheet and the toolbars scroll, so a part sent in a chat can be measured there.</span>
-          </li>
-        </ul>
       </section>
     </main>
 

@@ -79,7 +79,7 @@ function FileMenu({ onOpen, onAdd, onScreenshot }: Props) {
         <IconChevron size={12} />
       </button>
       {open && (
-        <div className="menu-list" role="menu">
+        <div className="menu-list" role="menu" aria-label="File menu">
           <button type="button" role="menuitem" className="menu-item" onClick={run(onOpen)}>
             <span>Open models…</span>
             <Kbd>Ctrl O</Kbd>
@@ -114,7 +114,7 @@ function FileMenu({ onOpen, onAdd, onScreenshot }: Props) {
               <span>Install Caliper as an app</span>
             </button>
           )}
-          <a className="menu-item" role="menuitem" href="/">
+          <a className="menu-item" role="menuitem" href="/" aria-label="About Caliper (opens home page)">
             <span>About Caliper</span>
           </a>
         </div>
@@ -130,6 +130,7 @@ function FileMenu({ onOpen, onAdd, onScreenshot }: Props) {
  */
 export function TopBar({ onOpen, onAdd, onScreenshot }: Props) {
   const model = useViewer((s) => s.model);
+  const hasToolpaths = useViewer((s) => s.slice.layerZ.length > 0);
   const others = useViewer((s) => s.models.length - 1);
   const workspace = useViewer((s) => s.workspace);
   const setWorkspace = useViewer((s) => s.setWorkspace);
@@ -159,7 +160,7 @@ export function TopBar({ onOpen, onAdd, onScreenshot }: Props) {
             role="tab"
             className="tab"
             aria-selected={workspace === tab.id}
-            disabled={tab.id === 'preview' && !model}
+            disabled={tab.id === 'preview' && !model && !hasToolpaths}
             onClick={() => setWorkspace(tab.id)}
           >
             {tab.icon}

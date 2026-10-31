@@ -1,51 +1,23 @@
 import { useState, type FormEvent } from 'react';
-import { BY_PIPELINE, FORMATS, PIPELINE_COPY, specFor } from '@/lib/formats';
+import { specFor } from '@/lib/formats';
 import { isMakerWorldUrl, modelNameFromUrl } from '@/lib/remote';
 import { parseMakerWorldUrl } from '@/lib/makerworld';
 import { ago, bytes } from '@/lib/format';
 import { useViewer } from '@/store/useViewer';
 import { useInstall, isStandalone } from '@/hooks/useInstall';
-import type { Pipeline } from '@/types';
 import {
   IconAdd,
-  IconAngle,
-  IconArrange,
-  IconAutoOrient,
-  IconDiameter,
-  IconDistance,
   IconDownload,
-  IconExplode,
   IconGear,
   IconKeyboard,
-  IconLayFace,
   IconLink,
-  IconMove,
   IconOpen,
-  IconOverhang,
   IconPreview,
   IconRecent,
-  IconSection,
   IconTrash,
 } from './Icons';
 import { Switch } from './ui';
 import { MakerWorldChooser } from './MakerWorldChooser';
-
-const ORDER: Pipeline[] = ['mesh', 'cad', 'bim'];
-
-/** The tools, as the toolbar shows them, so the start page doubles as a key. */
-const TOOLS = [
-  { icon: <IconAutoOrient />, name: 'Auto orient', text: 'Stands the part on its largest flat face.', keys: 'R' },
-  { icon: <IconLayFace />, name: 'Lay on face', text: 'Click a face and it goes down onto the plate.', keys: 'F' },
-  { icon: <IconDistance />, name: 'Distance', text: 'Two points, with the span split into X, Y and Z.', keys: 'U' },
-  { icon: <IconDiameter />, name: 'Diameter', text: 'Three points on a hole fit a circle through it.', keys: 'D' },
-  { icon: <IconAngle />, name: 'Angle', text: 'An arm, the corner, the other arm.', keys: 'A' },
-  { icon: <IconSection />, name: 'Section view', text: 'Cut the part along X, Y or Z and see a solid face.', keys: 'X' },
-  { icon: <IconExplode />, name: 'Assembly view', text: 'Pull the parts of an assembly apart.', keys: 'Y' },
-  { icon: <IconOverhang />, name: 'Overhangs', text: 'Faces that would print in mid-air turn red.', keys: 'O' },
-  { icon: <IconMove />, name: 'Move', text: 'Drag models across the plate to lay them out.', keys: 'M' },
-  { icon: <IconArrange />, name: 'Arrange', text: 'Pack every model on the plate side by side.', keys: 'T' },
-  { icon: <IconPreview />, name: 'Preview', text: 'Step through the part layer by layer from the plate up.', keys: '' },
-];
 
 /**
  * Recently opened models, reopened from this device's storage without choosing
@@ -222,10 +194,6 @@ export function Home({ onOpen }: { onOpen: () => void }) {
               Open
             </button>
           </div>
-          <p className="note">
-            Paste a direct model URL or a MakerWorld model page. Caliper reads direct files in memory; MakerWorld
-            profiles open on MakerWorld for download.
-          </p>
           {linkError && (
             <p className="field-error" id="home-link-error">
               {linkError}
@@ -249,68 +217,18 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
       <div className="home-main">
         <header className="home-head">
-          <h1 className="home-title">Open a 3D model and measure it</h1>
-          <p className="home-lede">
-            Drop a file anywhere in this window. It is read on this device and never uploaded, so it is safe for
-            confidential parts, and once Caliper has loaded it keeps working without a connection.
-          </p>
+          <h1 className="home-title">Slice a model for your Bambu Lab P1S</h1>
+          <p className="home-lede">Open a model, pick a filament and quality, then download a file the printer reads from its microSD card. Files never leave this device.</p>
         </header>
 
         <button type="button" className="dropzone" onClick={onOpen}>
           <IconOpen size={26} />
-          <span className="dropzone-title">Drop files, a folder or a .zip here</span>
-          <span className="dropzone-sub">
-            or click to choose. Several models open side by side on one plate; a .zip asks which of its models to
-            show. An OBJ with its .mtl or a glTF with its textures can come as one folder or archive.
-          </span>
+          <span className="dropzone-title">Drop a model here</span>
+          <span className="dropzone-sub">or click to choose. STL, 3MF, STEP, OBJ and more.</span>
         </button>
 
         <RecentModels />
 
-        <section className="home-block" aria-labelledby="home-formats">
-          <h2 className="home-h2" id="home-formats">
-            {FORMATS.length} file types, three ways in
-          </h2>
-          <div className="formats">
-            {ORDER.map((pipeline) => (
-              <div className="formats-row" key={pipeline} data-kind={pipeline}>
-                <div className="formats-label">
-                  <b>{PIPELINE_COPY[pipeline].title}</b>
-                  <span>{PIPELINE_COPY[pipeline].note}</span>
-                </div>
-                <ul className="chips">
-                  {BY_PIPELINE[pipeline].map((spec) => (
-                    <li className="chip" key={spec.ext} title={spec.label}>
-                      .{spec.ext}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <p className="note">
-            STEP, IGES, BREP, FCStd, 3DM and IFC open through WebAssembly geometry kernels that download the first
-            time one of those files is opened.
-          </p>
-        </section>
-
-        <section className="home-block" aria-labelledby="home-tools">
-          <h2 className="home-h2" id="home-tools">
-            What you can do once it is open
-          </h2>
-          <ul className="toolkey">
-            {TOOLS.map((tool) => (
-              <li key={tool.name}>
-                <span className="toolkey-icon">{tool.icon}</span>
-                <span className="toolkey-text">
-                  <b>{tool.name}</b>
-                  {tool.text}
-                </span>
-                {tool.keys && <kbd className="kbd">{tool.keys}</kbd>}
-              </li>
-            ))}
-          </ul>
-        </section>
       </div>
       {makerWorldTarget && <MakerWorldChooser target={makerWorldTarget} onClose={() => setMakerWorldTarget(null)} />}
     </div>

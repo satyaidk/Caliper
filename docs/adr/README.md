@@ -15,6 +15,7 @@ record.
 | [0006](0006-multi-model-plate.md) | Put several models on one plate, with one of them active | Accepted |
 | [0007](0007-slicer-core-layer-planning.md) | Start an independent slicer core with layer planning | Accepted |
 | [0008](0008-p1s-print-files-from-fetched-profiles.md) | Print P1S files built from Bambu's profiles, fetched at slice time | Accepted |
+| [0009](0009-print-formats-are-z-up.md) | Read print formats Z-up, and read 3MF with Caliper's own parser | Accepted |
 
 To add one, copy the shape of an existing record, number it next, and add a row
 here.

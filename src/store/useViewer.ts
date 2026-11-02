@@ -654,6 +654,7 @@ export const useViewer = create<ViewerState>((set, get) => {
         const result = await loadModel(item.file, ctx);
         const stats = computeStats(result.object);
         if (!stats.meshes && !stats.vertices) throw new Error('The file opened but contains no drawable geometry.');
+        for (const note of result.notes ?? []) get().toast({ tone: 'info', title: item.file.name, text: note });
         opened.push({ item, object: result, stats, parseMs: performance.now() - t0 });
       } catch (error) {
         get().toast({

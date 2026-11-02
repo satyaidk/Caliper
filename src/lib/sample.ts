@@ -127,7 +127,9 @@ export function gearReferencePoints() {
 /** The gear as a binary STL file, so the app opens it the way it opens any other. */
 export async function gearFile(): Promise<File> {
   const { STLExporter } = await import('three/examples/jsm/exporters/STLExporter.js');
-  const mesh = new THREE.Mesh(gearGeometry());
+  // Print files are Z-up (the loader turns STL Y-up for the viewer), so the
+  // Y-up gear is stood on Z before it is written out.
+  const mesh = new THREE.Mesh(gearGeometry().rotateX(Math.PI / 2));
   mesh.name = 'Spur gear';
   const data = new STLExporter().parse(mesh, { binary: true }) as DataView;
   mesh.geometry.dispose();

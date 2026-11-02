@@ -529,18 +529,29 @@ It is controlled by `extra_perimeters` and is skipped when there is no infill.
 `PerimeterGenerator::process_classic` is the original Slic3r method:
 
 ```text
-outline = this layer's outline
+last = this layer's outline
 loop i = 0 .. wall_count-1:
     if i == 0:
-        offset by −(external_width / 2)            # centre line of the outer wall
+        last = offset(last, −external_width / 2)        # centre line of the outer wall
+    elif i == 1:
+        last = offset(last, −(external_spacing + spacing) / 2)
     else:
-        offset by −(previous spacing / 2 + spacing / 2)
+        last = offset(last, −spacing)
     if nothing is left: stop
-    store the result as wall i
-inner edge of the last wall → area left for infill
+    store `last` as the centre line of wall i
+
+inset   = (one wall) ? external_spacing / 2 : spacing / 2
+overlap = infill_overlap (default 25%) of (inset + solid_infill_spacing / 2)
+infill area = offset(last, −(inset − overlap)), with slivers narrower
+              than one infill line removed
+
 narrow leftovers between walls → "gap fill" (thin single lines)
 parts too thin for even one wall → "thin walls" (if enabled)
 ```
+
+Note that walls are stepped by **spacing**, not width (section 15.2): lines
+overlap a little so they fuse. The infill is pushed 25% *into* the last wall
+(`infill_overlap`) so the two bond instead of leaving a seam of air.
 
 Every wall has the **same width**. If a part is 1.0 mm thick and each wall is
 0.45 mm, two walls fit and a thin sliver is left over, which is either filled
@@ -635,7 +646,8 @@ few pointless strokes.
 On a gentle slope, each layer's walls sit mostly on the infill below, so the
 shell would be thin. This step adds solid infill next to sloped walls so the
 shell keeps the thickness the top/bottom layer counts promise. In PrusaSlicer it
-follows `ensure_vertical_shell_thickness`.
+follows `ensure_vertical_shell_thickness`, which in 2.9 is a three-way choice
+(disabled, partial, enabled; enabled by default) rather than a switch.
 
 ### 10.4 `process_external_surfaces`: bridges
 

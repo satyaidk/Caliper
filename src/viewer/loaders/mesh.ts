@@ -9,7 +9,6 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js';
 import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader.js';
-import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js';
 import { AMFLoader } from 'three/examples/jsm/loaders/AMFLoader.js';
 import { VRMLLoader } from 'three/examples/jsm/loaders/VRMLLoader.js';
 
@@ -17,7 +16,9 @@ import { baseOf, extOf } from '@/lib/formats';
 import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
-import { applyBambu3mfColors, getBambu3mfFilamentColors } from './3mf-colors';
+import { parse3mf } from './threemf';
+import { getBambu3mfFilamentColors, threeMfObject } from './3mf-colors';
+import { CREASE_LIMIT, Z_UP_TO_Y_UP } from './conventions';
 import { SLICED_3MF_MESSAGE, slicedPlates } from '@/lib/sliced3mf';
 import type { LoadContext, LoadResult } from '@/types';
 
@@ -77,8 +78,9 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
       // ball. A crease angle does both: corners sharper than 30° stay sharp,
       // gentler ones are smoothed. Past 800,000 triangles the face normals the
       // file came with are kept, because welding that many corners stalls.
+      geometry.rotateX(Z_UP_TO_Y_UP);
       const triangles = geometry.getAttribute('position').count / 3;
-      const shaded = triangles < 800_000 ? creasedNormals(geometry, Math.PI / 6) : geometry;
+      const shaded = triangles < CREASE_LIMIT ? creasedNormals(geometry, Math.PI / 6) : geometry;
       return { object: wrap(shaded, file.name), hasAuthoredMaterials: false };
     }
 
@@ -152,25 +154,22 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
     }
 
     case '3mf': {
+      ctx.onProgress(null, 'Unpacking the 3MF');
       const data = await arrayBuffer(file);
-      const sliced = slicedPlates(data).length > 0;
-      let object: THREE.Group;
+      let parsed: ReturnType<typeof parse3mf>;
       try {
-        object = new ThreeMFLoader(manager).parse(data);
+        parsed = parse3mf(new Uint8Array(data));
       } catch (error) {
-        if (sliced) throw new Error(SLICED_3MF_MESSAGE);
+        // A plate-sliced .gcode.3mf holds G-code and no usable model; say so plainly.
+        if (slicedPlates(data).length) throw new Error(SLICED_3MF_MESSAGE);
         throw error;
       }
-      let hasMesh = false;
-      object.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) hasMesh = true;
-      });
-      if (sliced && !hasMesh) throw new Error(SLICED_3MF_MESSAGE);
-      applyBambu3mfColors(object, data);
-      object.name = file.name;
+      if (!parsed.parts.length && slicedPlates(data).length) throw new Error(SLICED_3MF_MESSAGE);
+      const { object, coloured } = threeMfObject(parsed, file.name);
       return {
         object,
-        hasAuthoredMaterials: true,
+        hasAuthoredMaterials: coloured,
+        notes: parsed.notes,
         filamentColors: getBambu3mfFilamentColors(object),
       };
     }
@@ -178,6 +177,7 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
     case 'amf': {
       const object = new AMFLoader(manager).parse(await arrayBuffer(file));
       object.name = file.name;
+      object.rotateX(Z_UP_TO_Y_UP);
       return { object, hasAuthoredMaterials: true };
     }
 

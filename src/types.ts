@@ -99,6 +99,8 @@ export interface LoadResult {
   object: THREE.Object3D;
   /** Loaders that carry their own colours ask us not to override materials. */
   hasAuthoredMaterials: boolean;
+  /** What a person should know about how the file was read. */
+  notes?: string[];
   /** AMS slots used by a Bambu/Orca 3MF model, when present. */
   filamentColors?: FilamentColor[];
 }

@@ -14,10 +14,10 @@ consequences, the ADRs in [adr/](adr/) hold the alternatives that were weighed.
 4. **Work as an app.** Installable, offline after the first visit, opening model
    files from the operating system.
 
-The slicer core is being introduced incrementally, starting with layer planning
-(ADR 0007). Full slicing and G-code generation remain out of scope until the
-later phases are designed and validated. Other non-goals: editing geometry,
-accounts or cloud storage.
+Slicing started with layer planning (ADR 0007) and now produces P1S print
+files from Bambu's own profiles, gated by an independent pre-flight check
+(ADR 0008). Print formats are read Z-up, as slicers read them (ADR 0009).
+Non-goals: editing geometry, accounts or cloud storage.
 
 ## Pages
 

@@ -167,29 +167,6 @@ describe('Bambu Studio projects (the Production extension)', () => {
     assert.ok(r.notes.some((n) => n.includes('modifier')));
   });
 
-  test('G-code inside a sliced .gcode.3mf is found', () => {
-    const r = parse3mf(
-      pack({
-        '3D/3dmodel.model': main,
-        '3D/Objects/object_1.model': objectFile(10, 10, 40),
-        '3D/Objects/object_2.model': objectFile(30, 30, 3),
-        'Metadata/plate_1.gcode': '; HEADER_BLOCK_START\nG28\n',
-        'Metadata/plate_2.gcode': 'G28\n',
-      }),
-    );
-    assert.deepEqual(
-      r.gcode.map((g) => g.name),
-      ['plate_1.gcode', 'plate_2.gcode'],
-    );
-    assert.ok(r.gcode[0].text.startsWith('; HEADER_BLOCK_START'));
-  });
-
-  test('a package holding only G-code still opens, for the checker', () => {
-    const r = parse3mf(pack({ 'Metadata/plate_1.gcode': 'G28\n' }));
-    assert.equal(r.parts.length, 0);
-    assert.equal(r.gcode.length, 1);
-  });
-
   test('a component pointing at a missing file is reported by name', () => {
     assert.throws(() => parse3mf(pack({ '3D/3dmodel.model': main })), /object_1\.model/);
   });

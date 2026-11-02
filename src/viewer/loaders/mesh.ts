@@ -17,7 +17,8 @@ import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
 import { parse3mf } from './threemf';
-import { applyBambu3mfColors, getBambu3mfFilamentColors } from './3mf-colors';
+import { getBambu3mfFilamentColors, threeMfObject } from './3mf-colors';
+import { CREASE_LIMIT, Z_UP_TO_Y_UP } from './conventions';
 import { SLICED_3MF_MESSAGE, slicedPlates } from '@/lib/sliced3mf';
 import type { LoadContext, LoadResult } from '@/types';
 
@@ -42,17 +43,6 @@ function wrap(geometry: THREE.BufferGeometry, name: string): THREE.Object3D {
   mesh.name = name;
   return mesh;
 }
-
-/**
- * Print formats (STL, 3MF, AMF) are Z-up: that is how every slicer reads them,
- * and 3MF and AMF say so in their specifications. The viewer is Y-up, so they
- * are turned a quarter about X. Without this, a part modelled standing up
- * opened lying on its side, and was sliced that way.
- */
-const Z_UP_TO_Y_UP = -Math.PI / 2;
-
-/** Crease-angle normals below this many triangles; past it, flat normals, because welding stalls. */
-const CREASE_LIMIT = 800_000;
 
 async function arrayBuffer(file: File) {
   return await file.arrayBuffer();
@@ -166,32 +156,21 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
     case '3mf': {
       ctx.onProgress(null, 'Unpacking the 3MF');
       const data = await arrayBuffer(file);
-      const parsed = parse3mf(new Uint8Array(data));
-      // A plate-sliced .gcode.3mf holds G-code and an empty model.
-      if (!parsed.parts.length && slicedPlates(data).length) throw new Error(SLICED_3MF_MESSAGE);
-      const root = new THREE.Group();
-      root.name = file.name;
-      let coloured = false;
-      for (const part of parsed.parts) {
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(part.positions, 3));
-        if (part.colours) geometry.setAttribute('color', new THREE.BufferAttribute(part.colours, 3));
-        geometry.rotateX(Z_UP_TO_Y_UP);
-        const shaded = part.positions.length / 9 < CREASE_LIMIT && !part.colours ? creasedNormals(geometry, Math.PI / 6) : geometry;
-        if (!shaded.getAttribute('normal')) shaded.computeVertexNormals();
-        const material = new THREE.MeshStandardMaterial({ vertexColors: Boolean(part.colours) });
-        if (part.colour) material.color.set(part.colour);
-        coloured ||= Boolean(part.colour || part.colours);
-        const mesh = new THREE.Mesh(shaded, material);
-        mesh.name = part.name;
-        root.add(mesh);
+      let parsed: ReturnType<typeof parse3mf>;
+      try {
+        parsed = parse3mf(new Uint8Array(data));
+      } catch (error) {
+        // A plate-sliced .gcode.3mf holds G-code and no usable model; say so plainly.
+        if (slicedPlates(data).length) throw new Error(SLICED_3MF_MESSAGE);
+        throw error;
       }
-      coloured = applyBambu3mfColors(root, data) || coloured;
+      if (!parsed.parts.length && slicedPlates(data).length) throw new Error(SLICED_3MF_MESSAGE);
+      const { object, coloured } = threeMfObject(parsed, file.name);
       return {
-        object: root,
+        object,
         hasAuthoredMaterials: coloured,
         notes: parsed.notes,
-        filamentColors: getBambu3mfFilamentColors(root),
+        filamentColors: getBambu3mfFilamentColors(object),
       };
     }
 

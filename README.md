@@ -9,7 +9,7 @@
 [![CI](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml/badge.svg)](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](tsconfig.json)
-[![Unit tests](https://img.shields.io/badge/unit%20tests-298%20passing-00ae42)](test/)
+[![Unit tests](https://img.shields.io/badge/unit%20tests-309%20passing-00ae42)](test/)
 [![Coverage](https://img.shields.io/badge/line%20coverage-67.9%25-00ae42)](#testing--quality)
 [![License: MIT](https://img.shields.io/badge/license-MIT-262e30)](LICENSE)
 
@@ -33,7 +33,7 @@ Caliper is an independent project and is not affiliated with or endorsed by Bamb
 
 | Area | What it does |
 | --- | --- |
-| **Formats** | 22 extensions through three pipelines: mesh (`stl` `obj` `ply` `off` `gltf` `glb` `fbx` `dae` `3ds` `3mf` `amf` `wrl`), CAD B-rep tessellated by WebAssembly kernels (`step` `stp` `iges` `igs` `brep` `brp` `fcstd` `3dm`) and BIM (`ifc` `bim`). |
+| **Formats** | 22 extensions through three pipelines: mesh (`stl` `obj` `ply` `off` `gltf` `glb` `fbx` `dae` `3ds` `3mf` `amf` `wrl`), CAD B-rep tessellated by WebAssembly kernels (`step` `stp` `iges` `igs` `brep` `brp` `fcstd` `3dm`) and BIM (`ifc` `bim`). STL, 3MF and AMF are read Z-up, as slicers read them; 3MF projects from Bambu Studio, OrcaSlicer and PrusaSlicer open with their parts, units and filament colours, and without their modifier volumes. |
 | **Zip archives** | A `.zip` is unpacked in the browser. One model inside opens directly; several open a chooser to pick one, some or all of them. Textures and materials in the archive come along. |
 | **Plate** | Up to 24 models side by side at their true relative sizes, each with its own colour. Drag them with the move tool, nudge them with the arrow keys, type an exact X/Z position, or arrange the whole plate in one key. |
 | **Recent models** | Recently opened models, with thumbnails, reopen from this device's storage without choosing the file again, and the last plate comes back where it was left. Clearing site data empties it; a switch turns it off. |

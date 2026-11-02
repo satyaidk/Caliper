@@ -5,7 +5,7 @@
 
 ## Context
 
-Two faults surfaced once Caliper started slicing (ADR 0007):
+Two faults surfaced once Caliper started slicing for the P1S (ADR 0008):
 
 1. **Orientation.** STL and 3MF files opened lying on their side. A box modelled
    40 mm tall showed as 10 mm tall and 40 mm deep. The viewer is Y-up, but print
@@ -45,10 +45,14 @@ Options considered for 3MF:
   (`test/threemf.test.ts`). It follows the package relationships to the root
   model, resolves components across files, applies build and component
   transforms (keeping mirrored triangles facing out), converts units to
-  millimetres, reads colours, leaves out modifier, negative, support-enforcer
+  millimetres, reads colours, and leaves out modifier, negative, support-enforcer
   and support-blocker volumes using Bambu Studio's `model_settings.config` and
-  PrusaSlicer's `Slic3r_PE_model.config`, and reports G-code found in a sliced
-  `.gcode.3mf`, which can then be checked (ADR 0007).
+  PrusaSlicer's `Slic3r_PE_model.config`.
+- Bambu Studio's filament palette, each object's and part's filament, and
+  whole-face paint are read by the same parser, and `3mf-colors.ts` builds the
+  meshes with the slot bookkeeping the AMS colour editing uses. That replaces
+  a second pass that re-read the archive and matched three.js meshes by name,
+  which could not find parts stored in separate files.
 - The sample gear is written out Z-up, as a real print file would be.
 
 ## Consequences

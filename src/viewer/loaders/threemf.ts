@@ -19,8 +19,9 @@ import { unzipSync, strFromU8 } from 'fflate';
  *
  * This reader resolves objects by (file, id), composes component and build
  * transforms, converts to millimetres, reads Bambu Studio's and PrusaSlicer's
- * part metadata to leave non-printing volumes out, picks up colours, and
- * notices G-code embedded in a sliced `.gcode.3mf`.
+ * part metadata to leave non-printing volumes out, and picks up colours: the
+ * core spec's materials, and Bambu Studio's filament palette with each
+ * object's, part's and painted face's filament slot.
  *
  * Pure code with no DOM and no three.js, so it is tested in Node. Coordinates
  * stay in 3MF's own frame (Z up); the loader turns them Y-up for the viewer.
@@ -34,14 +35,19 @@ export interface ThreeMfPart {
   colour: string | null;
   /** Per-vertex colours (three per vertex) when triangles differ in colour. */
   colours: Float32Array | null;
+  /**
+   * Bambu filament slot of each triangle, 0-based into `palette`, −1 for none.
+   * Null when the file has no palette or nothing in this part is assigned.
+   */
+  filament: Int16Array | null;
 }
 
 export interface ThreeMfResult {
   parts: ThreeMfPart[];
   /** Millimetres per unit of the file. */
   unitMm: number;
-  /** Sliced G-code found inside (Bambu Studio's Metadata/plate_N.gcode). */
-  gcode: { name: string; text: string }[];
+  /** Bambu Studio's filament colours, as saved in the project (`#RRGGBB`). */
+  palette: string[] | null;
   /** Things a person should know about how the file was read. */
   notes: string[];
 }
@@ -142,6 +148,8 @@ interface MeshObject {
   triangles: Uint32Array;
   /** Colour of each triangle, or null where none was given. */
   triangleColours: (string | null)[] | null;
+  /** Bambu/Prusa painted filament state of each triangle (0 inherits), or null. */
+  paint: (number | null)[] | null;
 }
 
 interface CompositeObject {
@@ -192,7 +200,9 @@ function parseModel(xml: string, path: string): ModelFile {
       }
       const indices: number[] = [];
       const triColours: (string | null)[] = [];
+      const paint: (number | null)[] = [];
       let anyColour = false;
+      let anyPaint = false;
       const objectPalette = a.pid ? palettes.get(a.pid) : undefined;
       const objectColour = objectPalette ? (objectPalette[Number(a.pindex ?? 0)] ?? null) : null;
       for (const m of body.matchAll(/<(?:[\w.-]+:)?triangle\b([^>]*)>/g)) {
@@ -202,6 +212,10 @@ function parseModel(xml: string, path: string): ModelFile {
         const colour = palette ? (palette[Number(t.p1 ?? a.pindex ?? 0)] ?? objectColour) : objectColour;
         if (colour) anyColour = true;
         triColours.push(colour);
+        // Bambu Studio writes `paint_color`, PrusaSlicer `slic3rpe:mmu_segmentation`.
+        const state = decodeBambuPaintState(t.paint_color ?? t.mmu_segmentation);
+        if (state !== null && state > 0) anyPaint = true;
+        paint.push(state);
       }
       const vertexCount = coords.length / 3;
       if (coords.some((c) => !Number.isFinite(c))) throw new Error(`Object ${a.id} in ${path} has a vertex that is not a number.`);
@@ -213,6 +227,7 @@ function parseModel(xml: string, path: string): ModelFile {
         vertices: Float64Array.from(coords),
         triangles: Uint32Array.from(indices),
         triangleColours: anyColour ? triColours : null,
+        paint: anyPaint ? paint : null,
       });
     } else {
       const components = [...elements(body, 'component')].map(({ attrs: c }) => {
@@ -259,11 +274,23 @@ const KIND_LABEL: Record<string, string> = {
   SupportBlocker: 'support blocker',
 };
 
+interface BambuObjectMeta {
+  name: string | null;
+  /** 1-based filament the object prints in, if set. */
+  extruder: number | null;
+  /** Kind of each part, by component object id. */
+  parts: Map<string, string>;
+  /** 1-based filament of each part that overrides the object's. */
+  partExtruders: Map<string, number>;
+}
+
 interface ProjectMeta {
-  /** Bambu Studio: main object id → its name and the kind of each part (by component object id). */
-  bambu: Map<string, { name: string | null; parts: Map<string, string> }>;
+  /** Bambu Studio: main object id → its name, filament and parts. */
+  bambu: Map<string, BambuObjectMeta>;
   /** PrusaSlicer: mesh object id → its name and triangle ranges that are not printed. */
   prusa: Map<string, { name: string | null; skip: { first: number; last: number; kind: string }[] }>;
+  /** Bambu Studio's filament colours. */
+  palette: string[] | null;
 }
 
 function metadataValue(body: string, key: string): string | null {
@@ -275,7 +302,7 @@ function metadataValue(body: string, key: string): string | null {
 }
 
 function parseProjectMeta(files: Record<string, Uint8Array>): ProjectMeta {
-  const meta: ProjectMeta = { bambu: new Map(), prusa: new Map() };
+  const meta: ProjectMeta = { bambu: new Map(), prusa: new Map(), palette: null };
   const find = (name: string) => Object.keys(files).find((k) => k.toLowerCase() === name.toLowerCase());
 
   const bambu = find('Metadata/model_settings.config');
@@ -285,13 +312,23 @@ function parseProjectMeta(files: Record<string, Uint8Array>): ProjectMeta {
       const id = attributes(attrs).id;
       if (!id) continue;
       const parts = new Map<string, string>();
+      const partExtruders = new Map<string, number>();
       for (const part of elements(body, 'part')) {
         const pa = attributes(part.attrs);
-        if (pa.id && pa.subtype) parts.set(pa.id, pa.subtype);
+        if (!pa.id) continue;
+        if (pa.subtype) parts.set(pa.id, pa.subtype);
+        const extruder = Number(metadataValue(part.body, 'extruder'));
+        if (Number.isInteger(extruder) && extruder > 0) partExtruders.set(pa.id, extruder);
       }
-      // The object's own name sits outside its parts.
+      // The object's own settings sit outside its parts.
       const own = body.replace(/<part\b[\s\S]*?<\/part>/g, '');
-      meta.bambu.set(id, { name: metadataValue(own, 'name'), parts });
+      const extruder = Number(metadataValue(own, 'extruder'));
+      meta.bambu.set(id, {
+        name: metadataValue(own, 'name'),
+        extruder: Number.isInteger(extruder) && extruder > 0 ? extruder : null,
+        parts,
+        partExtruders,
+      });
     }
   }
 
@@ -311,7 +348,35 @@ function parseProjectMeta(files: Record<string, Uint8Array>): ProjectMeta {
       meta.prusa.set(id, { name: metadataValue(own, 'name'), skip });
     }
   }
+
+  const settings = find('Metadata/project_settings.config');
+  if (settings) {
+    try {
+      const colours = (JSON.parse(strFromU8(files[settings]).replace(/^\uFEFF/, '')) as { filament_colour?: unknown }).filament_colour;
+      if (Array.isArray(colours) && colours.length) {
+        const palette = colours.map((value) => (typeof value === 'string' ? value.trim().match(/^#?([\da-f]{6})(?:[\da-f]{2})?$/i) : null));
+        if (palette.every(Boolean)) meta.palette = palette.map((m) => `#${m![1]}`);
+      }
+    } catch {
+      // A malformed settings file only costs the palette.
+    }
+  }
   return meta;
+}
+
+/**
+ * Bambu Studio's whole-face paint state: 0 inherits the part's filament,
+ * 1, 2, … are filament slots. Codes that subdivide a face are not decoded and
+ * return null, so the face inherits too.
+ */
+export function decodeBambuPaintState(value: string | undefined): number | null {
+  if (!value || !/^[\da-f]+$/i.test(value)) return null;
+  const encoded = Number.parseInt(value, 16);
+  if (encoded === 0) return 0;
+  if (encoded === 4) return 1;
+  if (encoded === 8) return 2;
+  if (encoded >= 12 && encoded <= 220 && (encoded - 12) % 16 === 0) return 3 + (encoded - 12) / 16;
+  return null;
 }
 
 /* --- reading a package ---------------------------------------------------- */
@@ -340,16 +405,7 @@ export function parse3mf(bytes: Uint8Array): ThreeMfResult {
       if (a.Type?.endsWith('/3dmodel') && a.Target) rootPath = normalise(a.Target);
     }
   }
-  const gcode = Object.keys(files)
-    .filter((k) => /^\/?Metadata\/plate_\d+\.gcode$/i.test(k))
-    .sort()
-    .map((k) => ({ name: k.split('/').pop()!, text: strFromU8(files[k]) }));
-
-  if (!read(rootPath)) {
-    // A sliced package may carry only G-code; that is still worth opening.
-    if (gcode.length) return { parts: [], unitMm: 1, gcode, notes: [] };
-    throw new Error('This 3MF has no 3D model inside (3D/3dmodel.model is missing).');
-  }
+  if (!read(rootPath)) throw new Error('This 3MF has no 3D model inside (3D/3dmodel.model is missing).');
 
   const models = new Map<string, ModelFile>();
   const model = (path: string): ModelFile => {
@@ -415,9 +471,31 @@ export function parse3mf(bytes: Uint8Array): ThreeMfResult {
     const colourList = object.triangleColours;
     const uniform = colourList && colourList.every((c) => c === colourList[0]) ? colourList[0] : null;
     const perVertex = colourList && !uniform ? new Float32Array(count * 9) : null;
+
+    // Bambu filament slots: a painted face's own slot, else the part's, else the object's.
+    const palette = meta.palette;
+    const slotOf = (extruder: number | null | undefined) =>
+      palette && extruder && extruder <= palette.length ? extruder - 1 : null;
+    const owner = rootId ? meta.bambu.get(rootId) : undefined;
+    const partKey = componentId ?? id;
+    // A mesh placed straight in the build is its own part; find the object that lists it.
+    const lister = owner?.partExtruders.has(partKey)
+      ? owner
+      : [...meta.bambu.values()].find((o) => o.partExtruders.has(partKey));
+    const inherited = slotOf(lister?.partExtruders.get(partKey)) ?? slotOf(owner?.extruder ?? lister?.extruder);
+    const slots = palette ? new Int16Array(count).fill(-1) : null;
+    let anySlot = false;
     let written = 0;
     for (let t = 0; t < count; t++) {
       if (skipped(t)) continue;
+      if (slots) {
+        const state = object.paint?.[t];
+        const slot = state && palette && state <= palette.length ? state - 1 : inherited;
+        if (slot !== null) {
+          slots[written] = slot;
+          anySlot = true;
+        }
+      }
       for (let corner = 0; corner < 3; corner++) {
         const vi = tri[t * 3 + (flip ? 2 - corner : corner)] * 3;
         const x = v[vi];
@@ -444,6 +522,7 @@ export function parse3mf(bytes: Uint8Array): ThreeMfResult {
       positions: written === count ? out : out.slice(0, written * 9),
       colour: uniform,
       colours: perVertex ? (written === count ? perVertex : perVertex.slice(0, written * 9)) : null,
+      filament: slots && anySlot ? slots.slice(0, written) : null,
     });
   };
 
@@ -463,5 +542,5 @@ export function parse3mf(bytes: Uint8Array): ThreeMfResult {
   }
   if (root.unitMm !== 1) notes.push(`The file is in ${UNIT_WORDS[root.unitMm] ?? 'another unit'}; sizes are converted to millimetres.`);
 
-  return { parts, unitMm: root.unitMm, gcode, notes };
+  return { parts, unitMm: root.unitMm, palette: meta.palette, notes };
 }

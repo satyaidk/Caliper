@@ -4,10 +4,21 @@ All notable changes to Caliper. Versions follow [semantic versioning](https://se
 
 ## [Unreleased]
 
-Several models on one plate, zip archives, and recently opened models.
+Slice and print for the Bambu Lab P1S, several models on one plate, zip
+archives, recently opened models, and 3MF files from Bambu Studio.
 
 ### Added
 
+- **Slice and print for the Bambu Lab P1S.** Print settings for filament, build plate, quality, infill, walls, adhesion and supports; slicing in a Web Worker with Bambu's own P1S profiles fetched from a pinned Bambu Studio release; a toolpath preview coloured by feature; and a `.gcode.3mf` download for microSD printing. See [ADR 0008](docs/adr/0008-p1s-print-files-from-fetched-profiles.md).
+- **G-code preview.** Opening a `.gcode.3mf` or `.gcode` from Bambu Studio, OrcaSlicer, PrusaSlicer or Cura shows its toolpaths in Preview, coloured by feature, with the layer slider and the time and filament its slicer recorded. Arc moves are followed, and Bambu's purge line and nozzle wipe are left out. Preview only: Caliper does not check or re-export files it did not slice.
+- **Pre-flight safety check.** Every print file is re-read independently before download. Download stays locked if any move leaves the plate or enters the excluded corner, Z exceeds 250 mm, flow or speed passes the limits, or the start and end sequence has been changed.
+- **MakerWorld links.** Pasting a MakerWorld page shows the design's public
+  profile and files through Caliper's same-origin API; the model itself is
+  still downloaded on MakerWorld.
+- **AMS colours for multicolour 3MFs.** Bambu Studio and OrcaSlicer projects
+  open in their saved filament colours. The Filament panel edits each slot's
+  colour, and the object list moves an object to another slot. Preview only:
+  the 3MF is not rewritten.
 - **Surface angle view (N).** A fourth display mode, after GitHub's STL
   viewer, that colours every surface by the direction it faces: red along +X,
   green up, blue towards the front. Flat faces read as one even colour, so
@@ -34,20 +45,6 @@ Several models on one plate, zip archives, and recently opened models.
   Clearing site data empties it, and a switch turns it off and forgets
   everything kept.
 
-### Fixed
-
-- **3MF files from Bambu Studio and OrcaSlicer open.** They failed with
-  "Cannot read properties of undefined (reading 'mesh')": objects stored in
-  separate files share ids, which three.js's loader could not tell apart.
-  Caliper now reads 3MF itself (ADR 0009): objects resolve by file and id,
-  build and component transforms apply, units (inches, centimetres…) convert to
-  millimetres, colours come through, and slicer modifier, negative and support
-  volumes are left out instead of being drawn and sliced as solid plastic.
-- **STL, 3MF and AMF stand the right way up.** They are Z-up, as every slicer
-  reads them, but opened lying on their side, so a tall part was also sliced on
-  its side.
-- **Sliced `.gcode.3mf` files** open their model and offer to check the G-code
-  inside; a package with only G-code goes straight to the checker.
 ### Changed
 
 - **Open replaces, Add joins.** Ctrl O and the Open button start a fresh plate;
@@ -57,19 +54,21 @@ Several models on one plate, zip archives, and recently opened models.
   model. The Size, Objects and Printability sections describe the active one.
 - `Engine.setPlate(bed)` no longer takes a unit; each model's unit is set with
   `setModelUnit`. `Engine.setModel` still replaces the plate with one model.
-
-### Added
-
-- **Slice and print for the Bambu Lab P1S.** Print settings for filament, build plate, quality, infill, walls, adhesion and supports; slicing in a Web Worker with Bambu's own P1S profiles fetched from a pinned Bambu Studio release; a toolpath preview coloured by feature; and a `.gcode.3mf` download for microSD printing. See [ADR 0008](docs/adr/0008-p1s-print-files-from-fetched-profiles.md).
-- **G-code preview.** Opening a `.gcode.3mf` or `.gcode` from Bambu Studio, OrcaSlicer, PrusaSlicer or Cura shows its toolpaths in Preview, coloured by feature, with the layer slider and the time and filament its slicer recorded. Arc moves are followed, and Bambu's purge line and nozzle wipe are left out. Preview only: Caliper does not check or re-export files it did not slice.
-- **Pre-flight safety check.** Every print file is re-read independently before download. Download stays locked if any move leaves the plate or enters the excluded corner, Z exceeds 250 mm, flow or speed passes the limits, or the start and end sequence has been changed.
-
-### Changed
-
 - **A simpler start.** The Home tab and the website are shorter: open, slice, print. The old heuristic Preview overlays and the inspection-only G-code export are replaced by the real slicer.
 
 ### Fixed
 
+- **3MF files from Bambu Studio and OrcaSlicer open.** They failed with
+  "Cannot read properties of undefined (reading 'mesh')": objects stored in
+  separate files share ids, which three.js's loader could not tell apart.
+  Caliper now reads 3MF itself (ADR 0009): objects resolve by file and id,
+  build and component transforms apply, units (inches, centimetres…) convert to
+  millimetres, slicer modifier, negative and support volumes are left out
+  instead of being drawn and sliced as solid plastic, and Bambu's filament
+  palette, part filaments and painted faces feed the AMS colour editing.
+- **STL, 3MF and AMF stand the right way up.** They are Z-up, as every slicer
+  reads them, but opened lying on their side, so a tall part was also sliced on
+  its side.
 - **Experimental G-code and slicer Preview.** Exported parts are no longer
   mirrored front to back. Supports measure overhangs in millimetres instead of
   viewer world units, keep XY and contact gaps, and stop on the part below.

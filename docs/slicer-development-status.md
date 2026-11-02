@@ -85,10 +85,11 @@ Still open:
   CORS/network failures. It does not save files or use a third-party proxy.
 - Added focused tests in `test/slicing.test.ts` and `test/remote.test.ts`.
 - Recorded the MIT/AGPL boundary and phase-1 scope in ADR 0007.
-- Added Bambu 3MF project-color handling in `src/viewer/loaders/3mf-colors.ts`:
+- Added Bambu 3MF project-color handling, now read by `src/viewer/loaders/threemf.ts`
+  and applied to meshes in `src/viewer/loaders/3mf-colors.ts` (ADR 0009):
   the saved filament palette and object/part extruder assignments are applied, and
   whole-face `paint_color`/`mmu_segmentation` assignments render with the exact
-  palette colors. Standard ThreeMFLoader colors remain untouched. Encoded
+  palette colors. A 3MF's own material colours remain untouched. Encoded
   within-face paint subdivision is not yet tessellated by Caliper.
 - Added editable AMS preview colors for imported multicolor 3MFs. The Filament
   panel offers named preset swatches and a custom color picker per used slot;

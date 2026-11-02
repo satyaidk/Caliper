@@ -1422,9 +1422,46 @@ Each phase ends with something visible and testable.
 | 6. Flow and G-code | Flow maths, a G-code writer for one printer (Bambu P1S or A1), start/end templates, travel with retraction. | Total extruded volume ≈ part volume × fill (Caliper already computes part volume); the file opens in the real slicer's G-code viewer. |
 | 7. Cooling and speeds | Per-role speeds, volumetric cap, cooling slow-down and fan. | The worked examples in 15.5 and 17.4. |
 | 8. Supports, brim, skirt | Grid supports first; trees much later. | Visual checks; prints. |
+| 9. Bridge surfaces | Separate unsupported underside regions, anchor bridge paths into surrounding solid, and use bridge spacing, round-bead flow, speed and fan settings. Start with a clearly labeled geometric direction heuristic. | A roof spanning two supports gets a distinct bridge role, bridge flow and fan; supported regions and the first layer do not. Compare direction and per-layer bridge extrusion against a real slicer's G-code viewer. |
+| 10. Bridge over sparse infill | Mark the first solid top-shell layer above sparse infill as an internal bridge; orient lines to cross the underlying infill and use bridge flow/speed. | A cube with sparse infill has a bridge role on its first top-shell layer only; 100% infill and later top-shell layers do not. Compare per-layer roles and extrusion with a real slicer. |
+| 11. Infill-aware bridge direction | Measure the generated sparse-infill paths below bridge regions, select the cardinal direction with the most perpendicular infill length, and retain a deterministic geometry fallback for ties. | Horizontal sparse lines choose vertical bridge paths; vertical sparse lines choose horizontal bridges; balanced grid paths take the documented fallback. |
+| 12. Bridge Preview | Draw bridge-over-sparse-infill paths at the selected layer in a dedicated amber overlay, using the same planner as experimental G-code export. | The overlay appears only for eligible top-shell layers over sparse infill, disappears at 100% density and on the first layer, and follows the selected layer and infill density. |
+| 13. Local bridge-span diagnostics | Intersect bridge paths with generated sparse infill below; show the intervals between support crossings separately in Preview without changing exported paths. | Synthetic horizontal/vertical fixtures produce only the expected between-crossing spans; Preview distinguishes those spans from complete heuristic bridge paths. |
 
 Arachne, tree supports, seam optimisation and multi-material are advanced work.
 They should come only after the simple version prints correctly.
+
+The bridge direction heuristic is an independent approximation, not a port of
+`BridgeDetector.cpp`. Keep paths anchored in nearby model material, expose the
+approximation in the UI and documentation, and do not claim slicer parity
+until tested against reference outputs.
+
+The initial internal-bridge rule is deliberately bounded: it recognizes a
+top-shell region intersecting the previous layer's internal/sparse region and
+disables the rule at 100% infill. It uses generated sparse paths to choose a
+cardinal direction, but does not calculate exact local unsupported gaps, so it
+remains an approximation until span-level analysis and reference comparisons
+are added.
+
+Phase 11 improves only direction selection: it scores real generated path
+segments by length and perpendicularity for horizontal versus vertical bridge
+paths. It does not determine exactly which portions of each sparse strand
+support each bridge segment; balanced grid directions fall back to the
+candidate region's bounding box.
+
+Phase 12 makes the phase 10/11 bridge-over-infill heuristic inspectable in
+Preview. The amber overlay and experimental exporter share one planner for
+region anchoring, underlying sparse-grid direction, and bridge path generation.
+It is a visualization of the same heuristic, not evidence of slicer parity;
+the broader top, solid, sparse, and wall overlays remain illustrative.
+
+Phase 13 measures where each generated bridge path crosses the previous
+layer's generated sparse-infill segments. Intervals between consecutive
+crossings are drawn red over the amber bridge paths. These are geometric
+between-strand spans, not a physical sag/adhesion prediction: line width,
+bead shape, partial contact, material behavior, and the slicer's local bridge
+detector are not modeled. The diagnostic is Preview-only and does not change
+G-code paths or establish printer safety.
 
 ### 22.5 How to test against the real slicers
 

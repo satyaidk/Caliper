@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import makerWorldApi from './api/makerworld';
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -67,8 +68,19 @@ function serviceWorker(): Plugin {
   };
 }
 
+function makerWorldDevApi(): Plugin {
+  return {
+    name: 'caliper-makerworld-dev-api',
+    configureServer(server) {
+      server.middlewares.use('/api/makerworld', (req, res) => {
+        void makerWorldApi(req, res);
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), versionStamp(), serviceWorker()],
+  plugins: [react(), versionStamp(), serviceWorker(), makerWorldDevApi()],
   resolve: {
     alias: { '@': here('./src') },
   },

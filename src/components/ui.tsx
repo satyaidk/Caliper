@@ -143,11 +143,9 @@ export function SideSection({ icon, title, aside, defaultOpen = true, children }
         </button>
         {aside && <div className="side-aside">{aside}</div>}
       </div>
-      {open && (
-        <div className="side-body" id={bodyId}>
-          {children}
-        </div>
-      )}
+      <div className="side-body" id={bodyId} hidden={!open}>
+        {children}
+      </div>
     </section>
   );
 }

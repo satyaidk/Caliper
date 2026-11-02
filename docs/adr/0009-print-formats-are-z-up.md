@@ -1,4 +1,4 @@
-# 0008: Read print formats Z-up, and read 3MF with Caliper's own parser
+# 0009: Read print formats Z-up, and read 3MF with Caliper's own parser
 
 - **Status:** Accepted
 - **Date:** 2026-11-02

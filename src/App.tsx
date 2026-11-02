@@ -3,7 +3,8 @@ import { useViewer, type IntakeMode } from '@/store/useViewer';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { useIsCompact } from '@/hooks/useMediaQuery';
-import { ACCEPT, baseOf } from '@/lib/formats';
+import { ACCEPT } from '@/lib/formats';
+import { modelNameFromUrl } from '@/lib/remote';
 import { TopBar } from '@/components/TopBar';
 import { Sidebar } from '@/components/Sidebar';
 import { Viewport } from '@/components/Viewport';
@@ -25,7 +26,7 @@ function modelFromUrl(): { url: string; name: string } | null {
   try {
     const url = new URL(raw, window.location.href);
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-    const name = params.get('name') || baseOf(decodeURIComponent(url.pathname)) || 'model';
+    const name = params.get('name') || modelNameFromUrl(url.href);
     return { url: url.href, name };
   } catch {
     return null;

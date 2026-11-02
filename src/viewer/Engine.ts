@@ -17,10 +17,17 @@ import {
   type OverhangMaterial,
 } from './materials';
 import { meshTriangles } from './triangles';
-import { analyse, overhangArea, OVERHANG_DEFAULT, type Vec3 } from './printability';
+import { analyse, openEdges, overhangArea, OVERHANG_DEFAULT, type Vec3 } from './printability';
 import { nearestRestingFace, restingFaces, type RestingFace } from './orient';
+import { sliceContours, type ContourLoop } from '@/lib/slicing';
+import type { PreviewData } from './sliceProtocol';
 import { fitOnBed, niceStep } from '@/lib/printers';
 import { arrange, placeBeside, type Extent, type Footprint } from '@/lib/arrange';
+import {
+  bambuObjectFilamentIndex,
+  setBambuFilamentColor,
+  setBambuObjectFilamentColor,
+} from './loaders/3mf-colors';
 import type {
   ClipState,
   Dimensions,
@@ -69,6 +76,10 @@ const HOVER_LIMIT = 6000;
 const ANALYSIS_LIMIT = 2_500_000;
 /** The open-edge check needs a hash entry per edge, so it stops sooner. */
 const EDGE_CHECK_LIMIT = 1_200_000;
+/** Keep the interactive layer outline bounded; it runs on the main thread. */
+const SLICE_TRIANGLE_LIMIT = 250_000;
+/** Slicing runs in a worker, but the triangle soup is copied there; keep it bounded. */
+const PRINT_TRIANGLE_LIMIT = 1_500_000;
 /** Part labels past this many are noise, not information. */
 const LABEL_LIMIT = 40;
 /** Space left between models when they are placed or arranged, in world units. */
@@ -218,6 +229,11 @@ export class Engine {
   private readonly annotations = new Annotations();
   private readonly section = new Section();
   private readonly explode = new Explode();
+  private readonly layerContours: THREE.LineSegments;
+  /** Sliced toolpaths, one coloured segment per extrusion move. */
+  private readonly toolpathLines: THREE.LineSegments;
+  private toolpathPreview: PreviewData | null = null;
+  private toolpathLayer = 0;
 
   private models: Mounted[] = [];
   private active: Mounted | null = null;
@@ -253,6 +269,8 @@ export class Engine {
 
   /* --- section ----------------------------------------------------------- */
   private clip: ClipState | null = null;
+  private layerPreviewAt: number | null = null;
+  private layerContoursLimited = false;
 
   /* --- labels ------------------------------------------------------------ */
   private labelSink: ((anchors: LabelAnchor[]) => void) | null = null;
@@ -320,11 +338,25 @@ export class Engine {
       transparent: true,
       opacity: skin.edgeOpacity,
     });
+    this.layerContours = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: skin.mark, depthTest: false, depthWrite: false, toneMapped: false }),
+    );
+    this.layerContours.renderOrder = 4;
+    this.layerContours.raycast = noRaycast;
+    this.toolpathLines = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false }),
+    );
+    this.toolpathLines.renderOrder = 2;
+    this.toolpathLines.raycast = noRaycast;
 
     this.scene.add(
       this.modelGroup,
       this.stage.group,
       this.section.group,
+      this.layerContours,
+      this.toolpathLines,
       this.annotations.group,
     );
     this.buildMarkers();
@@ -601,6 +633,7 @@ export class Engine {
     this.section.attach(this.allMeshes());
     this.applyRenderMode();
     this.applyClip();
+    this.refreshLayerContours();
     this.syncPlate();
     this.invalidate();
     return id;
@@ -696,6 +729,211 @@ export class Engine {
     return box;
   }
 
+  /** Rebuilds the outline of the model at the selected Preview layer. */
+  private refreshLayerContours(): boolean {
+    const clear = () => {
+      if (this.layerContours.geometry.getAttribute('position')?.count) {
+        const previous = this.layerContours.geometry;
+        this.layerContours.geometry = new THREE.BufferGeometry();
+        previous.dispose();
+      }
+    };
+    this.layerContoursLimited = false;
+    const bounds = this.visibleBounds();
+    if (this.layerPreviewAt === null || bounds.isEmpty() || this.toolpathPreview) {
+      clear();
+      return true;
+    }
+
+    const sources: { source: ReturnType<typeof meshTriangles>['source']; matrix: THREE.Matrix4 }[] = [];
+    let total = 0;
+    for (const model of this.models) {
+      if (!model.holder.visible) continue;
+      model.root.updateWorldMatrix(true, true);
+      const { source, total: modelTotal } = meshTriangles(model.root, SLICE_TRIANGLE_LIMIT, true);
+      total += modelTotal;
+      if (total > SLICE_TRIANGLE_LIMIT) {
+        this.layerContoursLimited = true;
+        clear();
+        return false;
+      }
+      sources.push({ source, matrix: model.root.matrixWorld.clone() });
+    }
+
+    const size = bounds.getSize(new THREE.Vector3());
+    const planeY = bounds.min.y + size.y * THREE.MathUtils.clamp(this.layerPreviewAt, 0.0005, 1);
+    const transformed = new Float64Array(9);
+    const point = new THREE.Vector3();
+    const source = (visit: (triangle: ArrayLike<number>) => void) => {
+      for (const item of sources) {
+        item.source((triangle) => {
+          for (let corner = 0; corner < 3; corner++) {
+            const i = corner * 3;
+            point.set(triangle[i], triangle[i + 1], triangle[i + 2]).applyMatrix4(item.matrix);
+            transformed[i] = point.x;
+            transformed[i + 1] = point.y;
+            transformed[i + 2] = point.z;
+          }
+          visit(transformed);
+        });
+      }
+    };
+    const loops: ContourLoop[] = sliceContours(source, planeY, Math.max(size.length() * 1e-8, 1e-8));
+    const vertices: number[] = [];
+    for (const loop of loops) {
+      for (let i = 0; i < loop.length; i++) {
+        const a = loop[i];
+        const b = loop[(i + 1) % loop.length];
+        vertices.push(a.x, planeY, a.z, b.x, planeY, b.z);
+      }
+    }
+    const previous = this.layerContours.geometry;
+    this.layerContours.geometry = new THREE.BufferGeometry();
+    this.layerContours.geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    previous.dispose();
+    return true;
+  }
+
+  /** Selects a normalized plate-height plane and shows the model's outline there. */
+  setLayerPreview(at: number | null): boolean {
+    const next = at === null ? null : THREE.MathUtils.clamp(at, 0, 1);
+    if (next === this.layerPreviewAt) return !this.layerContoursLimited;
+    this.layerPreviewAt = next;
+    const complete = this.refreshLayerContours();
+    this.invalidate();
+    return complete;
+  }
+
+  /* -------------------------------------------------------------- slicing ---- */
+
+  /**
+   * Gathers every visible model as one closed triangle soup on the P1S plate,
+   * in the slicer's order `(plateX, heightAboveBed, plateY)` and millimetres.
+   *
+   * The viewer is Y-up with +Z toward the viewer, which is the printer's
+   * front; printer +Y points to the back, so plate Y is the negated world Z
+   * (mapping it directly would mirror the part). The plate is centred on the
+   * world origin, so plate X/Y are offset by half the bed.
+   */
+  collectPrintMesh(): { triangles: Float32Array; heightMm: number } {
+    const bed = this.bed;
+    if (!bed || bed[0] !== 256 || bed[1] !== 256) {
+      throw new Error('Choose the Bambu Lab 256 mm plate (P1S) before slicing.');
+    }
+    if (!this.worldPerMm || this.worldPerMm <= 0) throw new Error('Open a model before slicing.');
+    const bounds = this.visibleBounds();
+    if (bounds.isEmpty()) throw new Error('There are no visible models on the plate.');
+    const limitX = (bed[0] / 2) * this.worldPerMm + 1e-6;
+    const limitZ = (bed[1] / 2) * this.worldPerMm + 1e-6;
+    if (bounds.min.x < -limitX || bounds.max.x > limitX || bounds.min.z < -limitZ || bounds.max.z > limitZ) {
+      throw new Error('Part of the plate is outside the 256 × 256 mm print area. Move or arrange the models.');
+    }
+    const worldPerMm = this.worldPerMm;
+    const sources: { source: ReturnType<typeof meshTriangles>['source']; matrix: THREE.Matrix4 }[] = [];
+    let count = 0;
+    for (const model of this.models) {
+      if (!model.holder.visible) continue;
+      model.root.updateWorldMatrix(true, true);
+      const { source, total } = meshTriangles(model.root, PRINT_TRIANGLE_LIMIT, true);
+      count += total;
+      if (count > PRINT_TRIANGLE_LIMIT) {
+        throw new Error(`Slicing is limited to ${PRINT_TRIANGLE_LIMIT.toLocaleString()} triangles in the browser.`);
+      }
+      sources.push({ source, matrix: model.root.matrixWorld.clone() });
+    }
+    if (!count) throw new Error('No visible mesh triangles were found.');
+
+    const triangles = new Float32Array(count * 9);
+    const point = new THREE.Vector3();
+    const halfWidth = bed[0] / 2;
+    const halfDepth = bed[1] / 2;
+    let offset = 0;
+    const worldSource = (visit: (triangle: ArrayLike<number>) => void) => {
+      const corner = new Float64Array(9);
+      for (const item of sources) {
+        item.source((triangle) => {
+          for (let i = 0; i < 9; i += 3) {
+            point.set(triangle[i], triangle[i + 1], triangle[i + 2]).applyMatrix4(item.matrix);
+            corner[i] = point.x;
+            corner[i + 1] = point.y;
+            corner[i + 2] = point.z;
+          }
+          visit(corner);
+        });
+      }
+    };
+    const openEdgeCount = openEdges(worldSource, Math.max(bounds.getSize(new THREE.Vector3()).length() * 1e-6, 1e-9));
+    if (openEdgeCount > 0) {
+      throw new Error(`The mesh is not closed (${openEdgeCount.toLocaleString()} open edges), so it cannot be sliced. Repair it first.`);
+    }
+    worldSource((corner) => {
+      for (let i = 0; i < 9; i += 3) {
+        triangles[offset++] = corner[i] / worldPerMm + halfWidth;
+        triangles[offset++] = (corner[i + 1] - bounds.min.y) / worldPerMm;
+        triangles[offset++] = halfDepth - corner[i + 2] / worldPerMm;
+      }
+    });
+    return { triangles, heightMm: (bounds.max.y - bounds.min.y) / worldPerMm };
+  }
+
+  /**
+   * Shows sliced toolpaths in place of the models, or restores the models
+   * with `null`. Positions arrive in plate millimetres.
+   */
+  setToolpathPreview(preview: PreviewData | null) {
+    const previous = this.toolpathLines.geometry;
+    this.toolpathLines.geometry = new THREE.BufferGeometry();
+    previous.dispose();
+    this.toolpathPreview = preview;
+    this.toolpathLayer = preview ? preview.layerEnds.length : 0;
+    this.modelGroup.visible = !preview;
+    if (preview && this.worldPerMm && this.bed) {
+      const wpm = this.worldPerMm;
+      const halfWidth = this.bed[0] / 2;
+      const halfDepth = this.bed[1] / 2;
+      const positions = new Float32Array(preview.positions.length);
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i] = (preview.positions[i] - halfWidth) * wpm;
+        positions[i + 1] = preview.positions[i + 2] * wpm;
+        positions[i + 2] = (halfDepth - preview.positions[i + 1]) * wpm;
+      }
+      this.toolpathLines.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      this.toolpathLines.geometry.setAttribute('color', new THREE.BufferAttribute(preview.colors, 3));
+      this.toolpathLines.geometry.setDrawRange(0, preview.layerEnds[preview.layerEnds.length - 1] ?? 0);
+      // A G-code file opened on its own has no model to frame or size the plate by.
+      if (!this.models.length) {
+        this.syncPlate();
+        this.toolpathLines.geometry.computeBoundingBox();
+        const box = this.toolpathLines.geometry.boundingBox;
+        if (box && !box.isEmpty()) this.rig.frame(box.clone(), new THREE.Vector3(...VIEW_DIRECTIONS.iso));
+      }
+    }
+    this.refreshLayerContours();
+    this.invalidate();
+  }
+
+  /**
+   * Readies an empty plate for a G-code file's toolpaths: clears any models,
+   * draws the printer's bed, and sets the world scale from the toolpaths'
+   * size, as the first model would.
+   */
+  prepareToolpathPlate(bed: [number, number, number], extentMm: number) {
+    this.clearModel();
+    this.bed = bed;
+    this.worldPerMm = CANONICAL / Math.max(extentMm, 1);
+  }
+
+  /** Shows toolpaths from the first layer up to `layer` (1-based). */
+  setToolpathLayer(layer: number) {
+    const preview = this.toolpathPreview;
+    if (!preview || !preview.layerEnds.length) return;
+    const index = THREE.MathUtils.clamp(Math.round(layer), 1, preview.layerEnds.length);
+    if (index === this.toolpathLayer) return;
+    this.toolpathLayer = index;
+    this.toolpathLines.geometry.setDrawRange(0, preview.layerEnds[index - 1]);
+    this.invalidate();
+  }
+
   /** Takes every model off the plate. */
   clearModel() {
     this.endDrag();
@@ -704,6 +942,7 @@ export class Engine {
     this.clearEdges();
     for (const model of this.models) this.unmount(model);
     this.models = [];
+    this.setToolpathPreview(null);
     this.active = null;
     this.worldPerMm = null;
     this.partCentres = null;
@@ -783,6 +1022,7 @@ export class Engine {
     }
     this.partCentres = null;
     this.section.setCapColour(capColour(model?.colour ?? this.filament, this.stage.skin.cap));
+    this.refreshLayerContours();
     if (notify) this.hooks.onActiveModel(model?.id ?? null);
     this.invalidate();
   }
@@ -816,6 +1056,15 @@ export class Engine {
     if (model === this.active) this.section.setCapColour(capColour(colour, this.stage.skin.cap));
     this.paintFilament(model);
     this.applySurfaces();
+  }
+
+  /** Changes one imported Bambu/Orca AMS slot without replacing other colors. */
+  setModelFilamentColor(id: number, paletteIndex: number, color: string): boolean {
+    const model = this.find(id);
+    if (!model) return false;
+    const changed = setBambuFilamentColor(model.root, paletteIndex, color);
+    if (changed) this.invalidate();
+    return changed;
   }
 
   /**
@@ -888,6 +1137,7 @@ export class Engine {
   private afterLayout() {
     this.partCentres = null;
     this.applyClip();
+    this.refreshLayerContours();
     this.syncPlate();
     this.invalidate();
   }
@@ -935,6 +1185,7 @@ export class Engine {
     drag.last.copy(point);
     drag.moved = true;
     if (this.selectedNode) this.selectionMark.show(this.selectedNode);
+    this.refreshLayerContours();
     this.invalidate();
   }
 
@@ -1096,6 +1347,7 @@ export class Engine {
     this.clearMeasurements();
     if (this.selectedNode) this.selectionMark.show(this.selectedNode);
     this.applyClip();
+    this.refreshLayerContours();
     this.syncPlate();
     this.hooks.onTransform(this.dimensions());
     this.frameAll();
@@ -1305,6 +1557,7 @@ export class Engine {
     for (const model of this.models) model.overhang.setOverhangColour(skin.over);
     this.edgeMaterial.color.setHex(skin.edgeInk);
     this.edgeMaterial.opacity = skin.edgeOpacity;
+    (this.layerContours.material as THREE.LineBasicMaterial).color.setHex(skin.mark);
     this.section.setCapColour(capColour(this.active?.colour ?? this.filament, skin.cap));
     this.invalidate();
   }
@@ -1332,7 +1585,7 @@ export class Engine {
 
   private syncPlate() {
     const worldPerMm = this.worldPerMm;
-    if (!this.models.length || worldPerMm === null) {
+    if ((!this.models.length && !this.toolpathPreview) || worldPerMm === null) {
       this.stage.setPlate({ width: CANONICAL * 3, depth: CANONICAL * 3, cell: 1, height: null, fits: true });
       this.stage.setShadowReach(0);
       this.stage.setGridVisible(this.gridWanted);
@@ -1460,6 +1713,7 @@ export class Engine {
     this.annotations.invalidate();
     if (this.selectedNode) this.selectionMark.show(this.selectedNode);
     this.applyClip();
+    this.refreshLayerContours();
     this.invalidate();
   }
 
@@ -1474,7 +1728,23 @@ export class Engine {
       name: node.name || `Part ${i + 1}`,
       triangles: model.triangleCounts.get(node.id) ?? 0,
       visible: node.visible,
+      filamentIndex: bambuObjectFilamentIndex(node),
     }));
+  }
+
+  /** Reassigns a selected object-list part to one imported AMS slot. */
+  setPartFilamentColor(id: number, paletteIndex: number, color: string): boolean {
+    const model = this.active;
+    const part = model?.parts.find((node) => node.id === id);
+    if (!model || !part) return false;
+    const changed = setBambuObjectFilamentColor(model.root, part.id, paletteIndex, color);
+    if (changed) {
+      if ((part as THREE.Mesh).isMesh) part.userData.caliperBase = (part as THREE.Mesh).material;
+      this.hooks.onParts(this.partList());
+      this.applySurfaces();
+      this.invalidate();
+    }
+    return changed;
   }
 
   private afterVisibility() {
@@ -1482,6 +1752,7 @@ export class Engine {
     this.hoverMark.hide();
     this.partCentres = null;
     this.hooks.onParts(this.partList());
+    this.refreshLayerContours();
     this.invalidate();
   }
 
@@ -1960,6 +2231,10 @@ export class Engine {
     this.rig.dispose();
     this.annotations.dispose();
     this.section.dispose();
+    this.layerContours.geometry.dispose();
+    (this.layerContours.material as THREE.Material).dispose();
+    this.toolpathLines.geometry.dispose();
+    (this.toolpathLines.material as THREE.Material).dispose();
     this.stage.dispose();
     this.selectionMark.dispose();
     this.hoverMark.dispose();

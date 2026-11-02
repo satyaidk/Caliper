@@ -12,12 +12,13 @@ import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader.js';
 import { AMFLoader } from 'three/examples/jsm/loaders/AMFLoader.js';
 import { VRMLLoader } from 'three/examples/jsm/loaders/VRMLLoader.js';
 
-
 import { baseOf, extOf } from '@/lib/formats';
 import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
 import { parse3mf } from './threemf';
+import { applyBambu3mfColors, getBambu3mfFilamentColors } from './3mf-colors';
+import { SLICED_3MF_MESSAGE, slicedPlates } from '@/lib/sliced3mf';
 import type { LoadContext, LoadResult } from '@/types';
 
 /**
@@ -164,7 +165,10 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
 
     case '3mf': {
       ctx.onProgress(null, 'Unpacking the 3MF');
-      const parsed = parse3mf(new Uint8Array(await arrayBuffer(file)));
+      const data = await arrayBuffer(file);
+      const parsed = parse3mf(new Uint8Array(data));
+      // A plate-sliced .gcode.3mf holds G-code and an empty model.
+      if (!parsed.parts.length && slicedPlates(data).length) throw new Error(SLICED_3MF_MESSAGE);
       const root = new THREE.Group();
       root.name = file.name;
       let coloured = false;
@@ -182,7 +186,13 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
         mesh.name = part.name;
         root.add(mesh);
       }
-      return { object: root, hasAuthoredMaterials: coloured, notes: parsed.notes };
+      coloured = applyBambu3mfColors(root, data) || coloured;
+      return {
+        object: root,
+        hasAuthoredMaterials: coloured,
+        notes: parsed.notes,
+        filamentColors: getBambu3mfFilamentColors(root),
+      };
     }
 
     case 'amf': {

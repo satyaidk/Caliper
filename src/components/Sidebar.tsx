@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useViewer, FILAMENTS, LAYER_HEIGHTS, useMm, type ModelEntry } from '@/store/useViewer';
+import { useViewer, FILAMENTS, useMm, type ModelEntry } from '@/store/useViewer';
+import { colourName } from '@/lib/colours';
 import { area, bytes, count, degrees, dim, grams, ms, shortName, volume } from '@/lib/format';
 import { PIPELINE_COPY } from '@/lib/formats';
-import { BEDS, MM_PER, bedById, fitOnBed, layerAtFraction, layerCount } from '@/lib/printers';
+import { BEDS, MM_PER, bedById, fitOnBed } from '@/lib/printers';
 import { MAX_MODELS } from '@/lib/intake';
 import type { Measurement, SourceUnit, UnitSystem } from '@/types';
 import {
@@ -17,7 +18,6 @@ import {
   IconEyeOff,
   IconFile,
   IconObjects,
-  IconPreview,
   IconPlate,
   IconPrinter,
   IconSize,
@@ -26,6 +26,7 @@ import {
   IconUndo,
 } from './Icons';
 import { ObjectList } from './ObjectList';
+import { PrintSettingsSection, PrintTicket, SliceBar } from './PrintPanel';
 import { Field, SideSection, Switch } from './ui';
 
 const UNITS: UnitSystem[] = ['mm', 'cm', 'm', 'in'];
@@ -116,6 +117,7 @@ function FilamentSection() {
   const model = useViewer((s) => s.model);
   const several = useViewer((s) => s.models.length > 1);
   const setFilament = useViewer((s) => s.setFilament);
+  const setModelFilamentColor = useViewer((s) => s.setModelFilamentColor);
   // The swatches colour the active model; with nothing open they choose the
   // colour the next model starts in.
   const filament = model?.colour ?? defaultColour;
@@ -153,6 +155,49 @@ function FilamentSection() {
           />
         </label>
       </div>
+      {model && model.filamentColors.length > 1 && (
+        <div className="ams-colors" aria-label="Imported AMS filament colors">
+          <p className="note">
+            Choose a preset for each AMS slot, then assign slots to objects below. Preview changes do not edit the 3MF.
+          </p>
+          {model.filamentColors.map((slot) => (
+            <details className="ams-color-slot" key={slot.index}>
+              <summary className="ams-color-row">
+                <span className="ams-color-label">
+                  <i className="ams-color-dot" style={{ backgroundColor: slot.color }} aria-hidden />
+                  AMS {slot.index + 1}
+                </span>
+                <span className="ams-color-current">{colourName(slot.color)}</span>
+                <span className="ams-color-action">Change</span>
+              </summary>
+              <div className="ams-color-options" role="radiogroup" aria-label={`Suggested colors for AMS ${slot.index + 1}`}>
+                {FILAMENTS.map((filament) => (
+                  <button
+                    type="button"
+                    key={filament.hex}
+                    className="ams-color-swatch"
+                    role="radio"
+                    aria-checked={filament.hex.toLowerCase() === slot.color.toLowerCase()}
+                    aria-label={`${filament.name} for AMS ${slot.index + 1}`}
+                    title={filament.name}
+                    style={{ backgroundColor: filament.hex }}
+                    onClick={() => setModelFilamentColor(model.id, slot.index, filament.hex)}
+                  />
+                ))}
+                <label className="ams-color-custom" title="Choose a custom color">
+                  <input
+                    type="color"
+                    value={slot.color}
+                    aria-label={`Choose a custom color for AMS ${slot.index + 1}`}
+                    onChange={(event) => setModelFilamentColor(model.id, slot.index, event.target.value)}
+                  />
+                  <span aria-hidden>+</span>
+                </label>
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
       {authored && (
         <>
           <Switch
@@ -480,45 +525,6 @@ function FileSection() {
   );
 }
 
-/* ---------------------------------------------------------------- preview */
-
-function LayerSection() {
-  const layerHeight = useViewer((s) => s.layerHeight);
-  const setLayerHeight = useViewer((s) => s.setLayerHeight);
-  const layerAt = useViewer((s) => s.layerAt);
-  const model = useViewer((s) => s.model);
-  const unit = useViewer((s) => s.unit);
-  // Layers run up through everything on the plate, as a slicer's do.
-  const heightMm = useViewer((s) => s.scene.y);
-  if (!model) return null;
-
-  const total = layerCount(heightMm, layerHeight);
-  const layer = layerAtFraction(layerAt, heightMm, layerHeight);
-
-  return (
-    <SideSection icon={<IconPreview size={16} />} title="Layers">
-      <label className="control control-row">
-        <span className="control-label">Layer height</span>
-        <select
-          className="select"
-          value={layerHeight}
-          onChange={(event) => setLayerHeight(Number(event.target.value))}
-        >
-          {LAYER_HEIGHTS.map((h) => (
-            <option key={h} value={h}>
-              {h.toFixed(2)} mm
-            </option>
-          ))}
-        </select>
-      </label>
-      <Field label="Layers in the part" value={count(total)} />
-      <Field label="Cut at layer" value={`${count(layer)} of ${count(total)}`} />
-      <Field label="Cut height" value={dim(Math.min(layer * layerHeight, heightMm), unit)} />
-      <p className="note">Drag the slider beside the plate to step through the part from the plate up.</p>
-    </SideSection>
-  );
-}
-
 function CheckupSection() {
   const report = useViewer((s) => s.report);
   const pending = useViewer((s) => s.reportPending);
@@ -610,32 +616,36 @@ export function Sidebar({ onAdd }: { onAdd: () => void }) {
 
   return (
     <aside className="sidebar" aria-label="Model settings">
-      <PrinterSection />
-      {workspace !== 'preview' && <PlateSection onAdd={onAdd} />}
-      {workspace === 'preview' ? (
-        <>
-          <LayerSection />
-          <CheckupSection />
-          <SizeSection />
-        </>
-      ) : (
-        <>
-          <FilamentSection />
-          {model && (
-            <SideSection
-              icon={<IconObjects />}
-              title="Objects"
-              aside={<span className="side-count num">{parts.length.toLocaleString()}</span>}
-            >
-              <ObjectList />
-            </SideSection>
-          )}
-          <SizeSection />
-          <MeasureSection />
-          <FileSection />
-          {!model && <p className="side-empty">Open a model and its size, parts and printability land here.</p>}
-        </>
-      )}
+      <div className="sidebar-scroll">
+        {workspace === 'preview' ? (
+          <>
+            <PrintTicket />
+            <CheckupSection />
+          </>
+        ) : (
+          <>
+            <PrintSettingsSection />
+            <PlateSection onAdd={onAdd} />
+            {model && (
+              <SideSection
+                icon={<IconObjects />}
+                title="Objects"
+                aside={<span className="side-count num">{parts.length.toLocaleString()}</span>}
+                defaultOpen={false}
+              >
+                <ObjectList />
+              </SideSection>
+            )}
+            <SizeSection />
+            <PrinterSection />
+            <FilamentSection />
+            <MeasureSection />
+            <FileSection />
+            {!model && <p className="side-empty">Open a model to set up the print.</p>}
+          </>
+        )}
+      </div>
+      <SliceBar />
     </aside>
   );
 }

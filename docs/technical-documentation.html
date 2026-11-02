@@ -324,11 +324,11 @@
     is a heavy price. Caliper is the light version of that job: open the file,
     read the numbers, close the tab.</p>
 
-  <p>Everything happens on the visitor's own machine. The file is never uploaded.
-    That is not only a privacy claim — it is an architectural fact that shapes
-    the whole codebase, because there is no server, no API, no database and no
-    authentication anywhere in this project. It is a pure frontend application,
-    which is exactly what makes it a good thing to learn from.</p>
+  <p>Model files opened in Caliper stay on the visitor's own machine and are never
+    uploaded. The MakerWorld integration is a small serverless exception: it
+    fetches public profile metadata and reference-image URLs for the chooser.
+    Caliper does not proxy or store MakerWorld model files, and it has no
+    application database or user authentication.</p>
 
   <h2>1.2 What a user can do</h2>
   <table>

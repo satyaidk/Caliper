@@ -12,7 +12,6 @@ import { StatusBar } from '@/components/StatusBar';
 import { Toasts } from '@/components/Toasts';
 import { Shortcuts } from '@/components/Shortcuts';
 import { ModelChooser } from '@/components/ModelChooser';
-import { ExportDialog, SliceErrorToast } from '@/components/SlicePanels';
 
 /**
  * A model can be handed to the page by URL — `?model=https://…/part.step` —
@@ -161,8 +160,6 @@ export default function App() {
       <Toasts />
       <Shortcuts />
       <ModelChooser />
-      <ExportDialog />
-      <SliceErrorToast />
 
       <input
         ref={inputRef}

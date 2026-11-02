@@ -18,7 +18,6 @@ import {
   IconSun,
 } from './Icons';
 import { Kbd } from './ui';
-import { SliceActions, chooseGcodeFile } from './SlicePanels';
 
 const TABS: { id: Workspace; label: string; icon: JSX.Element }[] = [
   { id: 'home', label: 'Home', icon: <IconHome size={16} /> },
@@ -105,9 +104,6 @@ function FileMenu({ onOpen, onAdd, onScreenshot }: Props) {
           <button type="button" role="menuitem" className="menu-item" disabled={!model} onClick={run(close)}>
             <span>{several ? 'Close the plate' : 'Close the model'}</span>
           </button>
-          <button type="button" role="menuitem" className="menu-item" onClick={run(chooseGcodeFile)}>
-            <span>Check a G-code file…</span>
-          </button>
           <div className="menu-sep" role="separator" />
           <button type="button" role="menuitem" className="menu-item" onClick={run(() => setShortcutsOpen(true))}>
             <span>Keyboard shortcuts</span>
@@ -192,7 +188,6 @@ export function TopBar({ onOpen, onAdd, onScreenshot }: Props) {
       </div>
 
       <div className="topbar-actions">
-        <SliceActions />
         {canInstall && !compact && (
           <button type="button" className="topbar-btn topbar-install" onClick={() => void install()}>
             <IconDownload size={15} />
@@ -202,7 +197,6 @@ export function TopBar({ onOpen, onAdd, onScreenshot }: Props) {
         <button
           type="button"
           className="topbar-btn topbar-icon"
-          data-optional
           onClick={onScreenshot}
           disabled={!model}
           title="Save the view as PNG (Ctrl S)"

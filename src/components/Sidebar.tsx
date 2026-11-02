@@ -26,14 +26,6 @@ import {
   IconUndo,
 } from './Icons';
 import { ObjectList } from './ObjectList';
-import { useSlicer } from '@/store/useSlicer';
-import {
-  CustomGcodeSection,
-  PrintSettingsSection,
-  PrinterSupport,
-  SliceResultSection,
-  SliceStartSection,
-} from './SlicePanels';
 import { Field, SideSection, Switch } from './ui';
 
 const UNITS: UnitSystem[] = ['mm', 'cm', 'm', 'in'];
@@ -106,7 +98,6 @@ function PrinterSection() {
         </select>
       </label>
       {verdict}
-      <PrinterSupport />
       {model && plate.cellMm !== null && (
         <p className="note">
           Grid squares are {Number(plate.cellMm.toPrecision(3))} mm across
@@ -616,32 +607,20 @@ export function Sidebar({ onAdd }: { onAdd: () => void }) {
   const workspace = useViewer((s) => s.workspace);
   const model = useViewer((s) => s.model);
   const parts = useViewer((s) => s.parts);
-  const sliced = useSlicer((s) => s.result !== null);
 
   return (
     <aside className="sidebar" aria-label="Model settings">
       <PrinterSection />
       {workspace !== 'preview' && <PlateSection onAdd={onAdd} />}
       {workspace === 'preview' ? (
-        sliced ? (
-          <>
-            <SliceResultSection />
-            <SliceStartSection />
-            <CheckupSection />
-          </>
-        ) : (
-          <>
-            <SliceStartSection />
-            <LayerSection />
-            <CheckupSection />
-            <SizeSection />
-          </>
-        )
+        <>
+          <LayerSection />
+          <CheckupSection />
+          <SizeSection />
+        </>
       ) : (
         <>
           <FilamentSection />
-          {model && <PrintSettingsSection />}
-          {model && <CustomGcodeSection />}
           {model && (
             <SideSection
               icon={<IconObjects />}

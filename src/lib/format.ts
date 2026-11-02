@@ -97,13 +97,3 @@ export function ago(then: number, now = Date.now()): string {
   if (days < 30) return `${days} days ago`;
   return new Date(then).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
-/** A print time: "1 h 05 min", "42 min", "50 s". */
-export function duration(seconds: number): string {
-  if (!(seconds > 0)) return '0 s';
-  if (seconds < 60) return `${Math.round(seconds)} s`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours} h ${String(minutes % 60).padStart(2, '0')} min`;
-}

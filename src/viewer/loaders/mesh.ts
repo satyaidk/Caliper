@@ -182,7 +182,7 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
         mesh.name = part.name;
         root.add(mesh);
       }
-      return { object: root, hasAuthoredMaterials: coloured, notes: parsed.notes, gcode: parsed.gcode };
+      return { object: root, hasAuthoredMaterials: coloured, notes: parsed.notes };
     }
 
     case 'amf': {

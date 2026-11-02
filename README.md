@@ -9,7 +9,7 @@
 [![CI](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml/badge.svg)](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](tsconfig.json)
-[![Unit tests](https://img.shields.io/badge/unit%20tests-235%20passing-00ae42)](test/)
+[![Unit tests](https://img.shields.io/badge/unit%20tests-98%20passing-00ae42)](test/)
 [![Coverage](https://img.shields.io/badge/line%20coverage-67.9%25-00ae42)](#testing--quality)
 [![License: MIT](https://img.shields.io/badge/license-MIT-262e30)](LICENSE)
 
@@ -40,8 +40,6 @@ Caliper is an independent project and is not affiliated with or endorsed by Bamb
 | **Look inside** | Section view along X, Y or Z with a hatched, stencil-filled cap so a cut reads as solid; assembly view that pulls parts apart along lines from the centre, ratio 1 to 3. |
 | **Preview** | A layer slider that cuts the part at any layer for the chosen layer height, with overhangs past a configurable limit painted red. |
 | **Printability** | Closed-surface check (open-edge count), volume, solid-PLA weight, surface area and overhang area, each computed from the triangles. |
-| **Slicing (experimental)** | Slice the plate to G-code for the Ender-3 and Prusa MK4 (Bambu printers with a start sequence you supply): classic walls, top and bottom shells, grid or line infill, skirt and brim, cooling and a look-ahead time estimate. Runs in a Web Worker; no supports yet, overhangs are reported instead. |
-| **G-code checker** | Every file is read back as text and checked before it can be exported: homing, machine limits, temperatures against the printer's rating, cold extrusion, flow, blobs, retractions, unfilled placeholders and file integrity. Export also needs the warnings acknowledged and a first-print checklist. Files from other slicers can be checked too. See [docs/slicer-logic.md §26](docs/slicer-logic.md#26-verifying-g-code-before-it-reaches-a-printer). |
 | **Printer plates** | Bambu Lab X1/P1/A1 (256 mm), A1 mini (180 mm), Prusa MK4 and Creality Ender-3 beds drawn at true size, with a fit check that allows a quarter turn. |
 | **View** | Perspective and orthographic cameras, shaded, wireframe, edges and surface-angle modes (each face coloured by the direction it points, as in GitHub's STL viewer), part labels, an orientation gizmo, Bambu's 0–7 view keys, and PNG export. |
 | **Objects** | Per-part visibility, isolate and search, windowed so a 10,000-part IFC model scrolls smoothly. |

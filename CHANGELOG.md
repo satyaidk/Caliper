@@ -4,28 +4,10 @@ All notable changes to Caliper. Versions follow [semantic versioning](https://se
 
 ## [Unreleased]
 
-Several models on one plate, zip archives, recently opened models, and an
-experimental slicer with a G-code safety checker.
+Several models on one plate, zip archives, and recently opened models.
 
 ### Added
 
-- **Slice plate (experimental).** The plate is sliced in a Web Worker into
-  G-code for the Creality Ender-3 and Prusa MK4, or a Bambu Lab printer with a
-  start sequence the person supplies (ADR 0007). Classic walls, top and bottom
-  shells (including behind sloped walls), grid or line infill, zig-zag solid
-  fill, bridges, skirt and brim, rear or aligned seams, PrusaSlicer's cooling
-  rules and a look-ahead trapezoid time estimate. PLA, PETG and ABS profiles.
-  No supports yet: overhangs and parts starting in mid-air are reported.
-- **G-code checker.** Every file is read back as text and checked against the
-  printer's limits before it can be exported: homing, travel limits, bed and
-  nozzle ratings, cold extrusion, flow, blobs, retractions, unfilled template
-  placeholders, Z order, end sequence and an integrity footer. Errors block
-  export; warnings must be acknowledged, then a first-print checklist ticked.
-  "Check a G-code file" applies the same checks to files from any slicer.
-- **Toolpath preview.** After slicing, the Preview draws the G-code's own moves
-  by role, layer by layer, with the current layer's travel moves on request.
-- **Print settings** in Prepare: material, layer height, walls, top and bottom
-  layers, infill, pattern, seam, brim and skirt, sized for touch on phones.
 - **Surface angle view (N).** A fourth display mode, after GitHub's STL
   viewer, that colours every surface by the direction it faces: red along +X,
   green up, blue towards the front. Flat faces read as one even colour, so

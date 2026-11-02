@@ -42,8 +42,6 @@ It is written for two readers at once:
 22. [What this means for Caliper](#22-what-this-means-for-caliper)
 23. [Glossary](#23-glossary)
 24. [Sources and how to check them yourself](#24-sources-and-how-to-check-them-yourself)
-25. [Caliper's slicer: what was built](#25-calipers-slicer-what-was-built)
-26. [Verifying G-code before it reaches a printer](#26-verifying-g-code-before-it-reaches-a-printer)
 
 ---
 
@@ -531,29 +529,18 @@ It is controlled by `extra_perimeters` and is skipped when there is no infill.
 `PerimeterGenerator::process_classic` is the original Slic3r method:
 
 ```text
-last = this layer's outline
+outline = this layer's outline
 loop i = 0 .. wall_count-1:
     if i == 0:
-        last = offset(last, −external_width / 2)        # centre line of the outer wall
-    elif i == 1:
-        last = offset(last, −(external_spacing + spacing) / 2)
+        offset by −(external_width / 2)            # centre line of the outer wall
     else:
-        last = offset(last, −spacing)
+        offset by −(previous spacing / 2 + spacing / 2)
     if nothing is left: stop
-    store `last` as the centre line of wall i
-
-inset   = (one wall) ? external_spacing / 2 : spacing / 2
-overlap = infill_overlap (default 25%) of (inset + solid_infill_spacing / 2)
-infill area = offset(last, −(inset − overlap)), with slivers narrower
-              than one infill line removed
-
+    store the result as wall i
+inner edge of the last wall → area left for infill
 narrow leftovers between walls → "gap fill" (thin single lines)
 parts too thin for even one wall → "thin walls" (if enabled)
 ```
-
-Note that walls are stepped by **spacing**, not width (section 15.2): lines
-overlap a little so they fuse. The infill is pushed 25% *into* the last wall
-(`infill_overlap`) so the two bond instead of leaving a seam of air.
 
 Every wall has the **same width**. If a part is 1.0 mm thick and each wall is
 0.45 mm, two walls fit and a thin sliver is left over, which is either filled
@@ -648,8 +635,7 @@ few pointless strokes.
 On a gentle slope, each layer's walls sit mostly on the infill below, so the
 shell would be thin. This step adds solid infill next to sloped walls so the
 shell keeps the thickness the top/bottom layer counts promise. In PrusaSlicer it
-follows `ensure_vertical_shell_thickness`, which in 2.9 is a three-way choice
-(disabled, partial, enabled; enabled by default) rather than a switch.
+follows `ensure_vertical_shell_thickness`.
 
 ### 10.4 `process_external_surfaces`: bridges
 
@@ -1540,120 +1526,3 @@ The files worth reading, in the order of this report:
 TypeScript from memory without looking, write a test with numbers you worked out
 by hand, then compare with the original. That builds real understanding, and it
 keeps our code our own (section 22.2).
-
----
-
-## 25. Caliper's slicer: what was built
-
-Section 22 planned the work; this section records what exists, so the report and
-the code can be read side by side. The licence path is option A (22.2): the
-pipeline below is Caliper's own TypeScript, written from this report, using
-Clipper 6 (`clipper-lib`, Boost licence) for polygon operations. Nothing is
-copied or translated from either slicer.
-
-### 25.1 Where each step lives
-
-| Step in this report | Caliper file | What it does | Differences from the slicers |
-| --- | --- | --- | --- |
-| Data model, integer coordinates (5.5) | `src/slicer/clipper.ts` | ExPolygons, offsets, booleans, line clipping; 1 unit = 1 µm | µm instead of nm (PrusaSlicer) or 10 nm (Bambu) |
-| Layer heights (7) | `src/slicer/layers.ts` | `generateLayers`: fixed first layer, then layers cut at their middle | No variable or adaptive layer height yet |
-| Mesh slicing (8) | `src/slicer/slice.ts` | Weld vertices, cut triangles, chain by shared edges, close gaps ≤ 1 mm, non-zero union, 0.05 mm closing | Same idea; simpler gap closing |
-| Walls (9.3) | `src/slicer/walls.ts` | Classic walls: outer at w/2, then (spacing + spacing)/2, then spacing; infill 25 % into the last wall | No Arachne, no gap fill, no thin walls (reported instead) |
-| Surfaces (10) | `src/slicer/surfaces.ts` | `sparse = infill ∩ T layers above ∩ B layers below`; the rest is solid, split into top, bridge and internal | One rule covers horizontal and vertical shells |
-| Infill (11) | `src/slicer/infill.ts` | Lines on a bed-fixed grid, alternating direction; grid and lines patterns; bridge angle = shortest span | No gyroid, cubic, lightning |
-| Supports (13) | `src/slicer/surfaces.ts → overhangs` | **Not generated.** Overhangs past the limit and islands starting in mid-air are reported | Mid-air islands block export |
-| Skirt, brim (14) | `src/slicer/toolpaths.ts` | Skirt around everything, brim loops from the outside in | No draft shield, no brim ears |
-| Toolpath order | `src/slicer/toolpaths.ts` | Islands nearest-first; inner walls before outer; seam at the rear or aligned; dense fills joined in a zig-zag; fill pieces nearest-first | — |
-| Flow maths (15) | `src/slicer/flow.ts` | The rounded-rectangle formulas, bridge circle, E per mm³, volumetric cap | Identical formulas |
-| G-code writing (16) | `src/slicer/gcode.ts` | Relative E, per-role speeds, retraction only when a travel crosses a wall, Z-lift, purge line, templates with a fixed placeholder list | No arc fitting, no pressure advance |
-| Cooling (17.4) | `src/slicer/gcode.ts → fanFor, slowdownFactor` | PrusaSlicer's fan formula and minimum layer time | Applied per layer before writing, not as a filter |
-| Time estimate (17.5) | `src/slicer/motion.ts` | Look-ahead trapezoid planner with Marlin's junction deviation | — |
-| Orchestration | `src/slicer/index.ts` | `slicePlate`: refuses bad input, runs the steps, verifies, merges findings | — |
-| Worker | `src/slicer/worker.ts` | Runs slicing and checking off the main thread | — |
-| Printer, filament, process data | `src/slicer/profiles.ts` | Limits, temperatures, speeds, start and end sequences | Start sequences are Caliper's own |
-
-### 25.2 Printers
-
-| Printer | Start sequence | Notes |
-| --- | --- | --- |
-| Creality Ender-3 | Built in: G28 then heat, hand-levelled bed | Nozzle capped at 245 °C for the PTFE-lined hot end; Z at 5 mm/s |
-| Prusa MK4 | Built in: model and nozzle checks (M862), probe at 170 °C, G28, G29 mesh | Experimental |
-| Bambu Lab X1/P1/A1, A1 mini | **You supply it** | Bambu's own sequence wipes the nozzle, levels, and drives the AMS; Caliper does not imitate it |
-
----
-
-## 26. Verifying G-code before it reaches a printer
-
-A wrong G-code file can damage a printer: a nozzle driven into the bed, a hot
-end heated past its rating, filament ground against a cold nozzle, a blob the
-nozzle crashes into. Caliper never assumes its own output is right. Every file
-is **read back as text**, the way the printer will read it, and checked against
-the chosen printer's limits (`src/slicer/verify.ts`). The Preview draws the
-moves that check collected, so what you look at is the file itself.
-
-### 26.1 What is checked
-
-Errors block export. Warnings must be acknowledged. For files from other
-slicers, a few errors become warnings, because vendor start sequences do
-things Caliper cannot judge (marked "softer for other slicers").
-
-| Code | Check | Why it matters | Severity |
-| --- | --- | --- | --- |
-| E001 | Every number is a finite number | A garbled value can be read as a huge move | Error |
-| E002 | No unfilled `{placeholder}` or `[variable]` | Usually a start sequence pasted from another slicer | Error |
-| W003 | Every line is a G, M or T command | Macros cannot be checked | Error (warning for other slicers) |
-| E010 | No axis moves before G28 homes it, or after motors are released | The printer does not know where the nozzle is | Error |
-| E011 | Every move inside the machine's travel, arcs included | Grinding against end stops or the frame | Error |
-| E012 | Plastic only on the bed | Extruding into the air or the frame | Error (warning for other slicers' purge lines) |
-| E020, E021 | Nozzle never below the bed; never extruding below 0.05 mm | Scraping or gouging the bed | Error |
-| E022 | Nothing printed higher than the printer can | Collision with the gantry | Error |
-| E023, E024 | Never printing or travelling below a finished layer | The nozzle ploughs through the part | Error |
-| E030, E031 | Nozzle and bed temperatures within the printer's rating | PTFE fumes, damaged hot end or bed | Error |
-| E034, E035 | No extrusion while the nozzle is under 170 °C or before an M109 wait | Ground filament, jammed extruder | Error |
-| W036 | The bed is waited for before printing | Poor adhesion | Warning |
-| W032 | Printing temperature within the filament's range | Poor layers, clogging | Warning |
-| E040 | Every move has a non-zero speed | Stalled moves | Error |
-| W041, W042, W044 | Speeds and accelerations within the firmware's limits | The firmware caps them; times are off | Warning |
-| W050 | Flow within what the hot end melts | Under-extrusion | Warning |
-| E051 | No line wider than 2.5 × the nozzle | A ridge the nozzle collides with | Error |
-| W052, E053 | Retractions within the extruder's safe length | Molten plastic pulled into the cold zone jams | Warning, error past 3 × |
-| E054 | No large blob pushed out in one place | The nozzle hits the blob | Error |
-| E060 | No tool change on a single-nozzle printer | Undefined behaviour | Error |
-| E061 | Fan values 0–255 | Invalid command | Error |
-| W070, W071 | Heaters off at the end; nozzle lifted off the print | Fire risk, melted part | Warning |
-| E080 | The file was made for the printer chosen | Its limits would not apply | Error |
-| E081, E082, E083 | Caliper's own files: the declared extrusion total matches, the start markers and end-of-file marker are present | The file was edited or cut short after slicing | Error |
-| E100 | Something is printed at all | An empty file | Error |
-| S001–S004 | The slicer's own findings: open mesh, features thinner than a line, overhangs past the limit, parts starting in mid-air | A failed print, or loose plastic wrapping the nozzle | Warning; mid-air is an error |
-
-Every check has a test that feeds the checker a file with exactly that fault
-(`test/verify.test.ts`), and a test that a correct file passes. The slicer's
-own maths is tested against the worked examples in this report
-(`test/slicer.test.ts`, `test/motion.test.ts`).
-
-### 26.2 Before the first print: a procedure
-
-The checker can only see the file. These steps cover the printer.
-
-1. **Slice in Caliper and read the report.** Fix every error. Read every
-   warning; the usual fix is to reorient the part or change a setting.
-2. **Step through the Preview.** Drag the layer slider to layer 1 and look at
-   the first layer: it should sit inside the bed, with the skirt around it.
-   Turn on travel moves for a layer or two.
-3. **Cross-check in a second viewer.** Open the exported file in a G-code
-   viewer you already trust, for example PrusaSlicer's G-code viewer
-   (File → G-code preview) or your printer's own preview. The layers, the
-   time and the filament length should agree roughly with Caliper's.
-4. **Check a known-good file the same way.** Use "Check a G-code file" on a
-   file from your usual slicer for the same printer. Comparing the two reports
-   shows whether Caliper's limits match your printer.
-5. **Start small.** Print a 20 mm cube first, with the bed clean, the right
-   filament loaded and, on printers without automatic levelling, the bed
-   levelled.
-6. **Watch the first layer with a hand near the stop control.** Stop the print
-   if the nozzle digs in, the plastic does not stick, or anything moves where it
-   should not. On most printers this is a "Stop" or "Cancel" item on the screen;
-   cutting the power is the last resort.
-7. **Only then print larger parts,** and keep watching the first layer of each
-   new kind of part.
-

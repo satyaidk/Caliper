@@ -456,28 +456,6 @@ export const useViewer = create<ViewerState>((set, get) => {
    * Parses every file, then mounts the ones that opened. Parsing comes first so
    * a batch that fails entirely leaves the plate exactly as it was.
    */
-  /**
-   * A sliced 3MF carries its G-code: offer to run it through the checker. The
-   * slicer store imports this one, so it is reached lazily to avoid a cycle.
-   */
-  const offerGcode = (source: string, gcode: { name: string; text: string }[], only: boolean) => {
-    const [first] = gcode;
-    const check = () =>
-      void import('@/store/useSlicer').then(({ useSlicer }) =>
-        useSlicer.getState().checkFile(new File([first.text], `${source.replace(/\.3mf$/i, '')}-${first.name}`)),
-      );
-    if (only) {
-      check();
-      return;
-    }
-    get().toast({
-      tone: 'info',
-      title: `${source} holds sliced G-code`,
-      text: `${gcode.length === 1 ? 'One plate' : `${gcode.length} plates`} of G-code came with the model. Check it against your printer before printing it.`,
-      action: { label: 'Check the G-code', run: check },
-    });
-  };
-
   const loadModels = async (items: LoadItem[], mode: IntakeMode) => {
     const engine = get().engine;
     if (!engine || !items.length) return;
@@ -514,12 +492,7 @@ export const useViewer = create<ViewerState>((set, get) => {
       try {
         const result = await loadModel(item.file, ctx);
         const stats = computeStats(result.object);
-        if (result.gcode?.length) offerGcode(item.file.name, result.gcode, !stats.meshes);
-        if (!stats.meshes && !stats.vertices) {
-          // A sliced .gcode.3mf can carry G-code and no model; that is not a failure.
-          if (result.gcode?.length) continue;
-          throw new Error('The file opened but contains no drawable geometry.');
-        }
+        if (!stats.meshes && !stats.vertices) throw new Error('The file opened but contains no drawable geometry.');
         for (const note of result.notes ?? []) get().toast({ tone: 'info', title: item.file.name, text: note });
         opened.push({ item, object: result, stats, parseMs: performance.now() - t0 });
       } catch (error) {

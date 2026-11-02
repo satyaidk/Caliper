@@ -13,7 +13,6 @@ record.
 | [0004](0004-stencil-section-caps.md) | Fill section cuts with a stencil-buffer cap | Accepted |
 | [0005](0005-crease-normals-for-stl.md) | Shade STL files with crease-angle normals | Accepted |
 | [0006](0006-multi-model-plate.md) | Put several models on one plate, with one of them active | Accepted |
-| [0007](0007-slicer-and-gcode-checker.md) | Slice in the browser, and check every G-code file before it can leave | Accepted |
 | [0008](0008-print-formats-are-z-up.md) | Read print formats Z-up, and read 3MF with Caliper's own parser | Accepted |
 
 To add one, copy the shape of an existing record, number it next, and add a row

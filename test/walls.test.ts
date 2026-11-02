@@ -33,23 +33,6 @@ describe('generateClassicWalls', () => {
       spacing: 0.5,
     });
 
-    describe('insetContours', () => {
-      test('insets the outer region and expands its hole by the same margin', () => {
-        const inset = insetContours([square(0, 10), square(3, 7).reverse()], 1);
-        const outer = inset.find((loop) => wallPathArea(loop) > 0);
-        const hole = inset.find((loop) => wallPathArea(loop) < 0);
-
-        assert.ok(outer && hole);
-        assert.deepEqual(bounds(outer), { minX: 1, maxX: 9, minZ: 1, maxZ: 9 });
-        assert.deepEqual(bounds(hole), { minX: 2, maxX: 8, minZ: 2, maxZ: 8 });
-      });
-
-      test('returns an empty area when inset collapses and rejects negative distance', () => {
-        assert.deepEqual(insetContours([square(0, 1)], 1), []);
-        assert.throws(() => insetContours([square(0, 10)], -1), /non-negative/);
-      });
-    });
-
     assert.equal(walls.length, 3);
     assert.deepEqual(bounds(walls[0][0]), { minX: 0.2, maxX: 9.8, minZ: 0.2, maxZ: 9.8 });
     assert.deepEqual(bounds(walls[1][0]), { minX: 0.7, maxX: 9.3, minZ: 0.7, maxZ: 9.3 });
@@ -126,6 +109,23 @@ describe('generateClassicWalls', () => {
       externalWidth: 0,
       spacing: 0.4,
     }), /positive finite/);
+  });
+});
+
+describe('insetContours', () => {
+  test('insets the outer region and expands its hole by the same margin', () => {
+    const inset = insetContours([square(0, 10), square(3, 7).reverse()], 1);
+    const outer = inset.find((loop) => wallPathArea(loop) > 0);
+    const hole = inset.find((loop) => wallPathArea(loop) < 0);
+
+    assert.ok(outer && hole);
+    assert.deepEqual(bounds(outer), { minX: 1, maxX: 9, minZ: 1, maxZ: 9 });
+    assert.deepEqual(bounds(hole), { minX: 2, maxX: 8, minZ: 2, maxZ: 8 });
+  });
+
+  test('returns an empty area when inset collapses and rejects negative distance', () => {
+    assert.deepEqual(insetContours([square(0, 1)], 1), []);
+    assert.throws(() => insetContours([square(0, 10)], -1), /non-negative/);
   });
 });
 

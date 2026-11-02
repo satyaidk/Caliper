@@ -7,6 +7,8 @@ import { Bracket } from './Bracket';
 import { CameraRig, VIEW_DIRECTIONS } from './CameraRig';
 import { Section } from './Section';
 import { Explode } from './Explode';
+import { Toolpaths } from './Toolpaths';
+import type { PreviewData } from '@/slicer/verify';
 import { angleAt, circleThrough, snapToFeature, type Snap } from './measure';
 import {
   capColour,
@@ -218,6 +220,7 @@ export class Engine {
   private readonly annotations = new Annotations();
   private readonly section = new Section();
   private readonly explode = new Explode();
+  private readonly toolpaths = new Toolpaths();
 
   private models: Mounted[] = [];
   private active: Mounted | null = null;
@@ -326,6 +329,7 @@ export class Engine {
       this.stage.group,
       this.section.group,
       this.annotations.group,
+      this.toolpaths.group,
     );
     this.buildMarkers();
     this.bindPointer();
@@ -1119,6 +1123,108 @@ export class Engine {
     this.afterReorient(model);
   }
 
+  /* --------------------------------------------------------- slicing ---- */
+
+  /**
+   * Every visible model's triangles for the slicer: millimetres, Z up, X and Y
+   * measured from the centre of the plate (docs/slicer-logic.md, 22.3):
+   *
+   *   printer (x, y, z) = world (x, −z, y) ÷ worldPerMm
+   *
+   * Hidden models are left out; hidden parts of a model are not, because
+   * hiding a part is a way of looking, not a way of removing material.
+   */
+  printTriangles(): Float32Array {
+    const wpm = this.worldPerMm;
+    if (!wpm) return new Float32Array(0);
+    const chunks: Float32Array[] = [];
+    let total = 0;
+    const v = new THREE.Vector3();
+    for (const model of this.models) {
+      if (!model.holder.visible) continue;
+      model.holder.updateWorldMatrix(true, true);
+      model.root.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (!mesh.isMesh || mesh.userData.caliperHelper) return;
+        const position = mesh.geometry?.getAttribute('position');
+        if (!position) return;
+        const index = mesh.geometry.getIndex();
+        const count = index ? index.count : position.count;
+        const out = new Float32Array(Math.floor(count / 3) * 9);
+        // A mirroring transform turns triangles inside out; flip them back.
+        const flip = mesh.matrixWorld.determinant() < 0;
+        for (let i = 0; i + 2 < count; i += 3) {
+          for (let corner = 0; corner < 3; corner++) {
+            const k = flip ? 2 - corner : corner;
+            v.fromBufferAttribute(position, index ? index.getX(i + k) : i + k).applyMatrix4(mesh.matrixWorld);
+            const o = (i / 3) * 9 + corner * 3;
+            out[o] = v.x / wpm;
+            out[o + 1] = -v.z / wpm;
+            out[o + 2] = v.y / wpm;
+          }
+        }
+        chunks.push(out);
+        total += out.length;
+      });
+    }
+    const all = new Float32Array(total);
+    let at = 0;
+    for (const chunk of chunks) {
+      all.set(chunk, at);
+      at += chunk.length;
+    }
+    return all;
+  }
+
+  /**
+   * A fingerprint of everything that changes the sliced geometry: which models
+   * are visible, where they are, how they are turned and scaled. A sliced
+   * result is stale once this changes.
+   */
+  geometryKey(): string {
+    return this.models
+      .map((m) => {
+        const q = m.pivot.quaternion;
+        const r = (n: number) => n.toFixed(5);
+        return `${m.id}:${m.holder.visible ? 1 : 0}:${r(m.spot.x)},${r(m.spot.y)}:${r(q.x)},${r(q.y)},${r(q.z)},${r(q.w)}:${r(m.holder.scale.x)}`;
+      })
+      .join('|');
+  }
+
+  /** Shows a sliced file's moves in place of the models, or puts the models back. */
+  showToolpaths(data: PreviewData | null, bed: [number, number]) {
+    const hadModels = this.models.length > 0;
+    if (data) {
+      // A G-code file checked with nothing on the plate still needs a scale and a bed.
+      const wpm = this.worldPerMm ?? CANONICAL / Math.max(bed[0], bed[1]);
+      this.toolpaths.set(data, bed, wpm);
+      this.modelGroup.visible = false;
+      this.section.group.visible = false;
+      this.select(null);
+      this.hoverMark.hide();
+      if (!hadModels) {
+        this.stage.setPlate({ width: bed[0] * wpm, depth: bed[1] * wpm, height: null, cell: 10 * wpm, fits: true });
+        this.frameAll();
+      }
+    } else {
+      this.toolpaths.set(null, bed, 1);
+      this.modelGroup.visible = true;
+      this.section.group.visible = true;
+      if (!hadModels) this.syncPlate();
+    }
+    this.invalidate();
+  }
+
+  /** Shows printed layers 0 … `layer`, and that layer's travel moves when asked. */
+  setToolpathLayer(layer: number, travel: boolean) {
+    this.toolpaths.showUpTo(layer, travel);
+    this.invalidate();
+  }
+
+  get toolpathsShown(): boolean {
+    return this.toolpaths.active;
+  }
+
   get oriented(): boolean {
     return Boolean(this.active && !this.active.pivot.quaternion.equals(new THREE.Quaternion()));
   }
@@ -1590,6 +1696,7 @@ export class Engine {
 
   private boundsOf(target?: THREE.Object3D): THREE.Box3 {
     if (target) return new THREE.Box3().setFromObject(target);
+    if (this.toolpaths.active) return new THREE.Box3().setFromObject(this.toolpaths.group);
     const visible = this.visibleBounds();
     return visible.isEmpty() ? new THREE.Box3().setFromObject(this.stage.group) : visible;
   }
@@ -1652,6 +1759,8 @@ export class Engine {
   }
 
   private nearestHit(): THREE.Intersection | null {
+    // With toolpaths showing, the model is hidden: there is nothing to pick.
+    if (this.toolpaths.active) return null;
     const hits = this.raycaster.intersectObjects(this.modelGroup.children, true);
     return hits.find((candidate) => this.shown(candidate.object) && !this.clipped(candidate.point)) ?? null;
   }
@@ -1946,6 +2055,7 @@ export class Engine {
 
     const buffer = this.renderer.getDrawingBufferSize(new THREE.Vector2());
     this.annotations.setResolution(buffer.x, buffer.y);
+    this.toolpaths.setResolution(buffer.x, buffer.y, this.renderer.getPixelRatio());
     this.annotations.invalidate();
     this.invalidate();
   }
@@ -1959,6 +2069,7 @@ export class Engine {
     this.clearModel();
     this.rig.dispose();
     this.annotations.dispose();
+    this.toolpaths.dispose();
     this.section.dispose();
     this.stage.dispose();
     this.selectionMark.dispose();

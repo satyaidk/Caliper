@@ -419,6 +419,30 @@ export const IconWarn = ({ size = 14 }: Props) => (
   </svg>
 );
 
+/** Stacked layers with a blade across them: slice the plate. */
+export const IconSlice = ({ size = 16 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M3.4 13.2 10 16.4l6.6-3.2M3.4 10 10 13.2l6.6-3.2" />
+    <path d="M10 3.6 16.6 6.8 10 10 3.4 6.8z" />
+    <path d="M2.2 4.2 17.8 2.4" opacity=".6" />
+  </svg>
+);
+
+/** A shield with a tick: the G-code checker. */
+export const IconShield = ({ size = 16 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M10 2.6 16 5v4.6c0 3.6-2.6 6.4-6 7.8-3.4-1.4-6-4.2-6-7.8V5z" />
+    <path d="m7.2 10 2 2 3.8-4" />
+  </svg>
+);
+
+export const IconInfo = ({ size = 14 }: Props) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="10" r="7.2" />
+    <path d="M10 9.2v4.6M10 6.4v.1" />
+  </svg>
+);
+
 /**
  * The mark. Two jaws closing on a span, with the span picked out in green —
  * the app's whole proposition at 22 pixels.

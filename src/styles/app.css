@@ -2422,3 +2422,397 @@
     opacity: 1;
   }
 }
+
+/* ================================================================ SLICING = */
+
+/* Bambu Studio puts "Slice plate" at the right of its top bar in green. */
+.slice-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+}
+.slice-btn[data-variant='primary'] {
+  background: var(--accent-fill);
+  color: #ffffff;
+  font-weight: 600;
+}
+.slice-btn[data-variant='primary']:hover {
+  background: var(--accent-fill-hover);
+  color: #ffffff;
+}
+.slice-btn[data-variant='ghost'] {
+  box-shadow: inset 0 0 0 1px var(--topbar-line);
+}
+.slice-card .btn {
+  margin-left: 4px;
+}
+
+/* Number fields with − and + either side: thumb-sized on a phone. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.stepper-btn {
+  width: 26px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--t-lg);
+  line-height: 1;
+}
+.stepper-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.stepper-btn:disabled {
+  opacity: 0.35;
+}
+.stepper-input {
+  width: 52px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--ink);
+  text-align: center;
+  font-size: var(--t-md);
+  -moz-appearance: textfield;
+}
+.stepper-input::-webkit-inner-spin-button,
+.stepper-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.stepper-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.stepper-suffix {
+  min-width: 22px;
+  padding-left: 3px;
+  font-size: var(--t-sm);
+  color: var(--ink-3);
+}
+.side-reset {
+  font-size: var(--t-sm);
+  margin-right: 6px;
+}
+.side-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 16px 0 6px;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.side-sub .link-btn {
+  font-size: var(--t-sm);
+  font-weight: 400;
+}
+
+.code-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  color: var(--ink);
+  font: 12px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  resize: vertical;
+}
+.code-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.placeholders {
+  margin-top: 10px;
+  font-size: var(--t-sm);
+}
+.placeholders summary {
+  cursor: pointer;
+  color: var(--link);
+}
+.placeholders code {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+  font-size: var(--t-xs);
+}
+
+.support-note {
+  margin-top: 10px;
+  font-size: var(--t-sm);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.support-note ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.support-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+.support-note[data-mode='custom'] .support-badge {
+  background: var(--sunken);
+  color: var(--warn);
+}
+
+/* The verdict on a sliced file: the first thing read, so it is the loudest. */
+.verdict-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid currentColor;
+  background: var(--sunken);
+}
+.verdict-card > svg {
+  flex: none;
+  margin-top: 1px;
+}
+.verdict-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.verdict-card strong {
+  font-size: var(--t-md);
+}
+.verdict-card span {
+  font-size: var(--t-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.verdict-card[data-tone='ok'] {
+  color: var(--accent-text);
+}
+.verdict-card[data-tone='warn'] {
+  color: var(--warn);
+}
+.verdict-card[data-tone='bad'] {
+  color: var(--danger);
+}
+
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.finding {
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  border-left: 3px solid var(--ink-3);
+}
+.finding[data-severity='error'] {
+  border-left-color: var(--danger);
+}
+.finding[data-severity='warning'] {
+  border-left-color: var(--warn);
+}
+.finding-head {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: var(--t-md);
+}
+.finding[data-severity='error'] .finding-icon {
+  color: var(--danger);
+}
+.finding[data-severity='warning'] .finding-icon {
+  color: var(--warn);
+}
+.finding-icon {
+  display: grid;
+  color: var(--ink-3);
+}
+.finding-count {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+}
+.finding-body {
+  padding: 0 10px 8px 32px;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.finding-body p {
+  margin: 0 0 4px;
+}
+.finding-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-3);
+}
+.finding-meta code {
+  font-size: var(--t-xs);
+}
+.slice-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.legend-toggle {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+.legend-toggle input {
+  accent-color: var(--accent);
+}
+
+/* The export dialog: the last stop before a printer. */
+.export-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.export-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.export-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.export-body {
+  padding: 4px 20px 8px;
+  overflow-y: auto;
+}
+.export-warnings {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--t-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.export-warnings li {
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  border-left: 3px solid var(--warn);
+}
+.export-warnings svg {
+  color: var(--warn);
+  vertical-align: -2px;
+}
+.checklist {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-md);
+  line-height: 1.45;
+  cursor: pointer;
+}
+.checklist label:hover {
+  background: var(--raise);
+}
+.checklist input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--accent);
+}
+.export-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .slice-actions {
+    margin-right: 2px;
+    gap: 4px;
+  }
+  .slice-btn {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  /* On a phone the export dialog takes the screen, buttons within thumb reach. */
+  .export-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+  }
+  .export-form {
+    height: 100%;
+  }
+  .export-body {
+    flex: 1;
+  }
+  .export-foot {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .export-foot .btn {
+    flex: 1;
+    height: 42px;
+  }
+  .finding-head {
+    min-height: 42px;
+  }
+  .stepper-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .stepper-input {
+    height: 34px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar-btn[data-optional] {
+    display: none;
+  }
+  .legend {
+    max-width: calc(100% - 120px);
+  }
+}

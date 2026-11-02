@@ -14,7 +14,11 @@ consequences, the ADRs in [adr/](adr/) hold the alternatives that were weighed.
 4. **Work as an app.** Installable, offline after the first visit, opening model
    files from the operating system.
 
-Non-goals: slicing and G-code, editing geometry, accounts or cloud storage.
+5. **Never let an unchecked file reach a printer.** Slicing is experimental;
+   every G-code file is read back and checked against the printer's limits
+   before it can be exported (ADR 0007, `src/slicer/`).
+
+Non-goals: editing geometry, accounts or cloud storage.
 
 ## Pages
 

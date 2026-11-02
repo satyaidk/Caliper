@@ -7,6 +7,8 @@ import { spreadLabels } from '@/lib/labels';
 import { Gizmo } from './Gizmo';
 import { CanvasToolbar, LayerSlider, PreviewLegend, ToolPanels, ViewBar } from './Toolbars';
 import { readout } from './Sidebar';
+import { SliceProgress, ToolpathLegend, ToolpathSlider } from './SlicePanels';
+import { useSlicer } from '@/store/useSlicer';
 import { IconClose } from './Icons';
 
 /**
@@ -204,6 +206,7 @@ export function Viewport({ dragging, onOpen, onAdd }: { dragging: boolean; onOpe
   const tool = useViewer((s) => s.measureTool);
   const hasModels = useViewer((s) => s.models.length > 0);
   const compact = useIsCompact();
+  const sliced = useSlicer((s) => s.result !== null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -253,7 +256,7 @@ export function Viewport({ dragging, onOpen, onAdd }: { dragging: boolean; onOpe
       {!empty && <PartLabels />}
 
       {!preview && <CanvasToolbar onOpen={onOpen} onAdd={onAdd} />}
-      {preview && <PreviewLegend />}
+      {preview && (sliced ? <ToolpathLegend /> : <PreviewLegend />)}
       {!empty && <ToolPanels />}
       {!empty && (
         <div className="stage-corner">
@@ -261,12 +264,13 @@ export function Viewport({ dragging, onOpen, onAdd }: { dragging: boolean; onOpe
         </div>
       )}
       {!empty && !compact && <Readout />}
-      {preview && <LayerSlider />}
+      {preview && (sliced ? <ToolpathSlider /> : <LayerSlider />)}
       <ViewBar />
 
-      {empty && <EmptyPlate onOpen={onOpen} />}
+      {empty && !(preview && sliced) && <EmptyPlate onOpen={onOpen} />}
 
       <Progress />
+      <SliceProgress />
       <ContextLost />
 
       {dragging && (

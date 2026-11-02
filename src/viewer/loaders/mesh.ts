@@ -9,7 +9,6 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js';
 import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader.js';
-import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js';
 import { AMFLoader } from 'three/examples/jsm/loaders/AMFLoader.js';
 import { VRMLLoader } from 'three/examples/jsm/loaders/VRMLLoader.js';
 
@@ -18,6 +17,7 @@ import { baseOf, extOf } from '@/lib/formats';
 import { CDN } from '@/lib/cdn';
 import { getActiveRenderer } from '@/viewer/renderer-registry';
 import { creasedNormals } from '@/viewer/normals';
+import { parse3mf } from './threemf';
 import type { LoadContext, LoadResult } from '@/types';
 
 /**
@@ -41,6 +41,17 @@ function wrap(geometry: THREE.BufferGeometry, name: string): THREE.Object3D {
   mesh.name = name;
   return mesh;
 }
+
+/**
+ * Print formats (STL, 3MF, AMF) are Z-up: that is how every slicer reads them,
+ * and 3MF and AMF say so in their specifications. The viewer is Y-up, so they
+ * are turned a quarter about X. Without this, a part modelled standing up
+ * opened lying on its side, and was sliced that way.
+ */
+const Z_UP_TO_Y_UP = -Math.PI / 2;
+
+/** Crease-angle normals below this many triangles; past it, flat normals, because welding stalls. */
+const CREASE_LIMIT = 800_000;
 
 async function arrayBuffer(file: File) {
   return await file.arrayBuffer();
@@ -76,8 +87,9 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
       // ball. A crease angle does both: corners sharper than 30° stay sharp,
       // gentler ones are smoothed. Past 800,000 triangles the face normals the
       // file came with are kept, because welding that many corners stalls.
+      geometry.rotateX(Z_UP_TO_Y_UP);
       const triangles = geometry.getAttribute('position').count / 3;
-      const shaded = triangles < 800_000 ? creasedNormals(geometry, Math.PI / 6) : geometry;
+      const shaded = triangles < CREASE_LIMIT ? creasedNormals(geometry, Math.PI / 6) : geometry;
       return { object: wrap(shaded, file.name), hasAuthoredMaterials: false };
     }
 
@@ -151,14 +163,32 @@ export async function loadMesh(file: File, ctx: LoadContext): Promise<LoadResult
     }
 
     case '3mf': {
-      const object = new ThreeMFLoader(manager).parse(await arrayBuffer(file));
-      object.name = file.name;
-      return { object, hasAuthoredMaterials: true };
+      ctx.onProgress(null, 'Unpacking the 3MF');
+      const parsed = parse3mf(new Uint8Array(await arrayBuffer(file)));
+      const root = new THREE.Group();
+      root.name = file.name;
+      let coloured = false;
+      for (const part of parsed.parts) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(part.positions, 3));
+        if (part.colours) geometry.setAttribute('color', new THREE.BufferAttribute(part.colours, 3));
+        geometry.rotateX(Z_UP_TO_Y_UP);
+        const shaded = part.positions.length / 9 < CREASE_LIMIT && !part.colours ? creasedNormals(geometry, Math.PI / 6) : geometry;
+        if (!shaded.getAttribute('normal')) shaded.computeVertexNormals();
+        const material = new THREE.MeshStandardMaterial({ vertexColors: Boolean(part.colours) });
+        if (part.colour) material.color.set(part.colour);
+        coloured ||= Boolean(part.colour || part.colours);
+        const mesh = new THREE.Mesh(shaded, material);
+        mesh.name = part.name;
+        root.add(mesh);
+      }
+      return { object: root, hasAuthoredMaterials: coloured, notes: parsed.notes, gcode: parsed.gcode };
     }
 
     case 'amf': {
       const object = new AMFLoader(manager).parse(await arrayBuffer(file));
       object.name = file.name;
+      object.rotateX(Z_UP_TO_Y_UP);
       return { object, hasAuthoredMaterials: true };
     }
 

@@ -9,7 +9,7 @@
 [![CI](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml/badge.svg)](https://github.com/satyaidk/Caliper/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](tsconfig.json)
-[![Unit tests](https://img.shields.io/badge/unit%20tests-223%20passing-00ae42)](test/)
+[![Unit tests](https://img.shields.io/badge/unit%20tests-235%20passing-00ae42)](test/)
 [![Coverage](https://img.shields.io/badge/line%20coverage-67.9%25-00ae42)](#testing--quality)
 [![License: MIT](https://img.shields.io/badge/license-MIT-262e30)](LICENSE)
 

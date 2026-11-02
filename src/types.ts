@@ -91,6 +91,10 @@ export interface LoadResult {
   object: THREE.Object3D;
   /** Loaders that carry their own colours ask us not to override materials. */
   hasAuthoredMaterials: boolean;
+  /** What a person should know about how the file was read. */
+  notes?: string[];
+  /** Sliced G-code found inside the file (a Bambu Studio `.gcode.3mf`). */
+  gcode?: { name: string; text: string }[];
 }
 
 export interface LoadContext {

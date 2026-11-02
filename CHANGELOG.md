@@ -52,6 +52,20 @@ experimental slicer with a G-code safety checker.
   Clearing site data empties it, and a switch turns it off and forgets
   everything kept.
 
+### Fixed
+
+- **3MF files from Bambu Studio and OrcaSlicer open.** They failed with
+  "Cannot read properties of undefined (reading 'mesh')": objects stored in
+  separate files share ids, which three.js's loader could not tell apart.
+  Caliper now reads 3MF itself (ADR 0008): objects resolve by file and id,
+  build and component transforms apply, units (inches, centimetres…) convert to
+  millimetres, colours come through, and slicer modifier, negative and support
+  volumes are left out instead of being drawn and sliced as solid plastic.
+- **STL, 3MF and AMF stand the right way up.** They are Z-up, as every slicer
+  reads them, but opened lying on their side, so a tall part was also sliced on
+  its side.
+- **Sliced `.gcode.3mf` files** open their model and offer to check the G-code
+  inside; a package with only G-code goes straight to the checker.
 ### Changed
 
 - **Open replaces, Add joins.** Ctrl O and the Open button start a fresh plate;
